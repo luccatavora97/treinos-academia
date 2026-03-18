@@ -1,0 +1,884 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Treino Lotz</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #12121a;
+    --surface2: #1a1a26;
+    --border: #2a2a3e;
+    --accent: #e8ff00;
+    --accent2: #00d4ff;
+    --accent3: #ff4d6d;
+    --text: #f0f0f0;
+    --muted: #666680;
+    --quad: #7c3aed;
+    --post: #db2777;
+    --glut: #d97706;
+    --adu: #059669;
+    --pant: #0891b2;
+    --costas: #2563eb;
+    --bicep: #7c3aed;
+    --ombro: #dc2626;
+    --peito: #ea580c;
+    --tricep: #16a34a;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .screen { display: none; min-height: 100vh; flex-direction: column; }
+  .screen.active { display: flex; }
+
+  /* ── TOAST ── */
+  #toast {
+    position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%);
+    background: var(--surface2); border: 1px solid var(--border);
+    color: var(--text); padding: 10px 20px; border-radius: 20px;
+    font-size: 13px; z-index: 9999; opacity: 0; transition: opacity 0.3s;
+    pointer-events: none; white-space: nowrap;
+  }
+  #toast.show { opacity: 1; }
+
+  /* ── LOADING ── */
+  #loading-overlay {
+    position: fixed; inset: 0; background: var(--bg);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 9998; flex-direction: column; gap: 16px;
+  }
+  #loading-overlay.hidden { display: none; }
+  .loading-logo { font-family: 'Bebas Neue', sans-serif; font-size: 40px; color: var(--accent); letter-spacing: 4px; }
+  .loading-spinner {
+    width: 32px; height: 32px;
+    border: 3px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── HOME ── */
+  #home { background: var(--bg); position: relative; overflow: hidden; }
+  #home::before {
+    content: ''; position: absolute; top: -200px; left: -200px;
+    width: 600px; height: 600px;
+    background: radial-gradient(circle, rgba(232,255,0,0.05) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .home-header { padding: 52px 28px 0; position: relative; }
+  .home-logo { font-family: 'Bebas Neue', sans-serif; font-size: 48px; letter-spacing: 4px; color: var(--accent); line-height: 1; }
+  .home-logo span { color: var(--text); }
+  .home-sub { font-size: 12px; color: var(--muted); letter-spacing: 2px; text-transform: uppercase; margin-top: 4px; }
+  .sync-status { display: flex; align-items: center; gap: 6px; margin-top: 10px; font-size: 11px; color: var(--muted); }
+  .sync-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); }
+  .sync-dot.offline { background: var(--accent3); }
+  .home-body { padding: 32px 28px; flex: 1; }
+  .section-label { font-size: 11px; letter-spacing: 3px; text-transform: uppercase; color: var(--muted); margin-bottom: 14px; }
+  .workout-cards { display: flex; flex-direction: column; gap: 10px; }
+  .workout-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 16px; padding: 22px 20px; cursor: pointer;
+    position: relative; overflow: hidden; transition: all 0.2s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .workout-card::before {
+    content: ''; position: absolute; left: 0; top: 0; bottom: 0;
+    width: 4px; border-radius: 4px 0 0 4px;
+  }
+  .workout-card.perna::before { background: var(--quad); }
+  .workout-card.costas::before { background: var(--costas); }
+  .workout-card.peito::before { background: var(--peito); }
+  .workout-card:active { transform: scale(0.98); }
+  .wc-name { font-family: 'Bebas Neue', sans-serif; font-size: 26px; letter-spacing: 2px; line-height: 1; }
+  .wc-muscles { font-size: 12px; color: var(--muted); margin-top: 5px; }
+  .wc-info { display: flex; gap: 10px; margin-top: 14px; }
+  .wc-badge { font-size: 11px; padding: 3px 9px; border-radius: 20px; background: var(--surface2); color: var(--muted); letter-spacing: 0.5px; }
+  .wc-arrow { position: absolute; right: 20px; top: 50%; transform: translateY(-50%); font-size: 22px; color: var(--muted); }
+  .home-stats { margin-top: 32px; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 18px 20px; }
+  .stats-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-top: 12px; }
+  .stat-item { text-align: center; }
+  .stat-num { font-family: 'Bebas Neue', sans-serif; font-size: 30px; color: var(--accent); line-height: 1; }
+  .stat-lbl { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+  /* ── FICHA ── */
+  #ficha { background: var(--bg); }
+  .ficha-header {
+    padding: 20px 20px 14px; border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; background: var(--bg); z-index: 10;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .btn-back {
+    background: var(--surface); border: 1px solid var(--border); color: var(--text);
+    width: 38px; height: 38px; border-radius: 10px; cursor: pointer; font-size: 18px;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.2s;
+  }
+  .btn-back:active { background: var(--surface2); }
+  .ficha-title { font-family: 'Bebas Neue', sans-serif; font-size: 24px; letter-spacing: 2px; flex: 1; }
+  .ficha-body { padding: 12px; display: flex; flex-direction: column; gap: 7px; padding-bottom: 32px; }
+  .ex-row {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 14px; display: flex; align-items: center; gap: 12px;
+    cursor: pointer; transition: all 0.15s;
+  }
+  .ex-row:active { background: var(--surface2); }
+  .ex-row.done-today { border-color: rgba(232,255,0,0.3); }
+  .ex-num { font-family: 'Bebas Neue', sans-serif; font-size: 20px; color: var(--muted); width: 26px; flex-shrink: 0; }
+  .ex-info { flex: 1; }
+  .ex-name { font-size: 13px; font-weight: 500; line-height: 1.3; }
+  .ex-meta { font-size: 11px; color: var(--muted); margin-top: 3px; }
+  .ex-muscle-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .ex-done-check { color: var(--accent); font-size: 15px; flex-shrink: 0; }
+  .btn-hist { background: var(--surface); border: 1px solid var(--border); color: var(--muted); padding: 7px 12px; border-radius: 9px; cursor: pointer; font-size: 11px; font-family: 'DM Sans', sans-serif; white-space: nowrap; }
+
+  /* ── EXERCÍCIO ── */
+  #exercicio { background: var(--bg); }
+  .ex-header { padding: 16px 16px 12px; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--bg); z-index: 10; }
+  .ex-header-top { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .ex-progress-bar { height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; }
+  .ex-progress-fill { height: 100%; background: var(--accent); border-radius: 2px; transition: width 0.4s; }
+  .ex-header-title { font-family: 'Bebas Neue', sans-serif; font-size: 20px; letter-spacing: 1px; flex: 1; line-height: 1.2; }
+  .ex-counter { font-size: 11px; color: var(--muted); flex-shrink: 0; }
+  .ex-body { padding: 14px; flex: 1; overflow-y: auto; padding-bottom: 8px; }
+
+  .ex-visual { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; margin-bottom: 14px; position: relative; }
+  .ex-visual img { width: 100%; height: 180px; object-fit: contain; background: #0f0f18; display: block; }
+  .ex-visual-placeholder { height: 100px; display: flex; align-items: center; justify-content: center; background: #0f0f18; color: #2a2a3e; font-size: 12px; letter-spacing: 1px; }
+  .ex-muscle-tag { position: absolute; top: 10px; left: 10px; font-size: 10px; padding: 3px 9px; border-radius: 20px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; }
+
+  .equipment-selector { display: flex; gap: 7px; margin-bottom: 14px; flex-wrap: wrap; }
+  .eq-btn { flex: 1; min-width: 70px; padding: 9px 6px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface); color: var(--muted); font-family: 'DM Sans', sans-serif; font-size: 12px; cursor: pointer; text-align: center; transition: all 0.15s; }
+  .eq-btn.active { border-color: var(--accent); background: rgba(232,255,0,0.08); color: var(--accent); font-weight: 600; }
+
+  .obs-card { background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--accent2); border-radius: 12px; padding: 12px 14px; margin-bottom: 14px; font-size: 13px; color: #ccd; line-height: 1.6; }
+  .obs-card strong { color: var(--accent2); font-size: 10px; letter-spacing: 2px; text-transform: uppercase; display: block; margin-bottom: 5px; }
+
+  .weight-rec { background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: 12px; padding: 12px 14px; margin-bottom: 14px; display: flex; align-items: center; gap: 12px; }
+  .weight-rec-icon { font-size: 22px; }
+  .weight-rec-text { flex: 1; }
+  .weight-rec-label { font-size: 10px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; }
+  .weight-rec-val { font-family: 'Bebas Neue', sans-serif; font-size: 26px; color: var(--accent); line-height: 1.1; }
+  .weight-rec-sub { font-size: 11px; color: var(--muted); margin-top: 1px; }
+
+  .series-section { margin-bottom: 14px; }
+  .series-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 9px; }
+  .series-title { font-size: 11px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; }
+  .rep-range { font-family: 'Bebas Neue', sans-serif; font-size: 18px; color: var(--accent); letter-spacing: 1px; }
+  .series-rows { display: flex; flex-direction: column; gap: 7px; }
+  .serie-row { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 11px 12px; display: flex; align-items: center; gap: 10px; }
+  .serie-row.done { border-color: rgba(232,255,0,0.25); background: rgba(232,255,0,0.03); }
+  .serie-label { font-family: 'Bebas Neue', sans-serif; font-size: 19px; color: var(--muted); width: 28px; }
+  .serie-input-group { display: flex; gap: 7px; flex: 1; }
+  .serie-input-wrap { flex: 1; }
+  .serie-input-label { font-size: 9px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 3px; }
+  .serie-input { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 18px; font-weight: 500; padding: 7px 8px; text-align: center; outline: none; transition: border-color 0.2s; -webkit-appearance: none; }
+  .serie-input:focus { border-color: var(--accent); }
+  .serie-check { width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface2); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; transition: all 0.15s; flex-shrink: 0; }
+  .serie-check.done { background: var(--accent); border-color: var(--accent); color: #000; font-weight: 700; }
+
+  .timer-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 18px; text-align: center; margin-bottom: 14px; }
+  .timer-display { font-family: 'Bebas Neue', sans-serif; font-size: 68px; color: var(--accent); line-height: 1; letter-spacing: 4px; }
+  .timer-display.running { color: var(--accent2); }
+  .timer-display.done-timer { color: var(--accent3); }
+  .timer-label { font-size: 10px; color: var(--muted); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 10px; }
+  .timer-controls { display: flex; gap: 8px; justify-content: center; margin-top: 10px; }
+  .timer-btn { padding: 9px 18px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface2); color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 13px; cursor: pointer; transition: all 0.15s; }
+  .timer-btn.primary { background: var(--accent); color: #000; border-color: var(--accent); font-weight: 600; }
+  .timer-presets { display: flex; gap: 5px; justify-content: center; margin-top: 8px; flex-wrap: wrap; }
+  .timer-preset { font-size: 11px; padding: 4px 9px; border-radius: 20px; border: 1px solid var(--border); background: var(--surface2); color: var(--muted); cursor: pointer; transition: all 0.15s; }
+  .timer-preset:active { border-color: var(--accent); color: var(--accent); }
+
+  .ex-nav { display: flex; gap: 9px; padding: 12px 14px; border-top: 1px solid var(--border); position: sticky; bottom: 0; background: var(--bg); }
+  .nav-btn { flex: 1; padding: 13px; border-radius: 12px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.15s; }
+  .nav-btn.primary { background: var(--accent); color: #000; border-color: var(--accent); font-weight: 600; }
+  .nav-btn:active { opacity: 0.8; }
+
+  /* ── HISTÓRICO ── */
+  #historico { background: var(--bg); }
+  .hist-header { padding: 20px 20px 14px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 12px; }
+  .hist-title { font-family: 'Bebas Neue', sans-serif; font-size: 26px; letter-spacing: 2px; }
+  .hist-filter { display: flex; gap: 7px; padding: 12px 14px 6px; flex-wrap: wrap; }
+  .filter-btn { font-size: 11px; padding: 5px 12px; border-radius: 20px; border: 1px solid var(--border); background: var(--surface); color: var(--muted); cursor: pointer; transition: all 0.15s; }
+  .filter-btn.active { border-color: var(--accent); color: var(--accent); background: rgba(232,255,0,0.07); }
+  .hist-body { padding: 8px 14px; padding-bottom: 32px; }
+  .hist-date-group { margin-bottom: 18px; }
+  .hist-date-label { font-size: 11px; color: var(--muted); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 8px; padding: 0 2px; }
+  .hist-entry { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px; margin-bottom: 7px; }
+  .hist-entry-top { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .hist-ficha-tag { font-size: 10px; padding: 2px 8px; border-radius: 10px; font-weight: 600; letter-spacing: 0.5px; }
+  .hist-ex-name { font-weight: 500; font-size: 13px; flex: 1; }
+  .hist-eq { font-size: 11px; color: var(--muted); }
+  .hist-series { display: flex; flex-wrap: wrap; gap: 5px; }
+  .hist-serie-tag { font-size: 11px; padding: 3px 8px; border-radius: 6px; background: var(--surface2); color: var(--muted); }
+  .empty-state { text-align: center; padding: 60px 24px; color: var(--muted); font-size: 14px; }
+  .empty-state .icon { font-size: 44px; margin-bottom: 12px; }
+
+  @keyframes fadeIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
+  .fade-in { animation: fadeIn 0.25s ease; }
+</style>
+</head>
+<body>
+
+<!-- Loading overlay -->
+<div id="loading-overlay">
+  <div class="loading-logo" style="font-size:28px;letter-spacing:2px;text-align:center;line-height:1.2">Treinos by<br><span style="font-size:40px;letter-spacing:4px">Luccão Gigante</span></div>
+  <div class="loading-spinner"></div>
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<!-- ═══ HOME ═══ -->
+<div id="home" class="screen">
+  <div class="home-header">
+    <div class="home-logo" style="font-size:36px;letter-spacing:2px">Treinos by <span>Luccão Gigante</span></div>
+    <div class="home-sub">Selecione o treino do dia</div>
+    <div class="sync-status">
+      <div class="sync-dot" id="sync-dot"></div>
+      <span id="sync-label">Conectado à nuvem</span>
+    </div>
+  </div>
+  <div class="home-body">
+    <div class="section-label">Fichas</div>
+    <div class="workout-cards">
+      <div class="workout-card perna" onclick="openFicha('perna')">
+        <div class="wc-name">TREINO A — PERNA</div>
+        <div class="wc-muscles">Quadríceps · Posterior · Glúteo · Adutor · Panturrilha</div>
+        <div class="wc-info">
+          <span class="wc-badge">22 exercícios</span>
+          <span class="wc-badge">3 séries cada</span>
+        </div>
+        <div class="wc-arrow">›</div>
+      </div>
+      <div class="workout-card costas" onclick="openFicha('costas')">
+        <div class="wc-name">TREINO B — COSTAS</div>
+        <div class="wc-muscles">Costas · Bíceps · Posterior Ombro · Trapézio</div>
+        <div class="wc-info">
+          <span class="wc-badge">16 exercícios</span>
+          <span class="wc-badge">3 séries cada</span>
+        </div>
+        <div class="wc-arrow">›</div>
+      </div>
+      <div class="workout-card peito" onclick="openFicha('peito')">
+        <div class="wc-name">TREINO C — PEITO</div>
+        <div class="wc-muscles">Ombro · Tríceps · Peito</div>
+        <div class="wc-info">
+          <span class="wc-badge">8 exercícios</span>
+          <span class="wc-badge">3 séries cada</span>
+        </div>
+        <div class="wc-arrow">›</div>
+      </div>
+    </div>
+    <div class="home-stats">
+      <div class="section-label">Estatísticas</div>
+      <div class="stats-grid">
+        <div class="stat-item"><div class="stat-num" id="stat-treinos">—</div><div class="stat-lbl">Sessões</div></div>
+        <div class="stat-item"><div class="stat-num" id="stat-series">—</div><div class="stat-lbl">Séries</div></div>
+        <div class="stat-item"><div class="stat-num" id="stat-exercicios">—</div><div class="stat-lbl">Exercícios</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ FICHA ═══ -->
+<div id="ficha" class="screen">
+  <div class="ficha-header">
+    <button class="btn-back" onclick="goHome()">←</button>
+    <div class="ficha-title" id="ficha-title">TREINO</div>
+    <button class="btn-hist" onclick="openHistorico()">📊 Histórico</button>
+  </div>
+  <div class="ficha-body" id="ficha-body"></div>
+</div>
+
+<!-- ═══ EXERCÍCIO ═══ -->
+<div id="exercicio" class="screen">
+  <div class="ex-header">
+    <div class="ex-header-top">
+      <button class="btn-back" onclick="goFicha()">←</button>
+      <div class="ex-header-title" id="ex-title">Exercício</div>
+      <div class="ex-counter" id="ex-counter">1/22</div>
+    </div>
+    <div class="ex-progress-bar">
+      <div class="ex-progress-fill" id="ex-progress" style="width:0%"></div>
+    </div>
+  </div>
+  <div class="ex-body" id="ex-body"></div>
+  <div class="ex-nav">
+    <button class="nav-btn" id="btn-prev" onclick="navEx(-1)">← Anterior</button>
+    <button class="nav-btn primary" id="btn-next" onclick="navEx(1)">Próximo →</button>
+  </div>
+</div>
+
+<!-- ═══ HISTÓRICO ═══ -->
+<div id="historico" class="screen">
+  <div class="hist-header">
+    <button class="btn-back" onclick="closeHistorico()">←</button>
+    <div class="hist-title">HISTÓRICO</div>
+  </div>
+  <div class="hist-filter" id="hist-filter">
+    <div class="filter-btn active" onclick="filterHist('todos')">Todos</div>
+    <div class="filter-btn" onclick="filterHist('perna')">Perna</div>
+    <div class="filter-btn" onclick="filterHist('costas')">Costas</div>
+    <div class="filter-btn" onclick="filterHist('peito')">Peito</div>
+  </div>
+  <div class="hist-body" id="hist-body"></div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════
+   SUPABASE CONFIG
+═══════════════════════════════════════════ */
+const SUPABASE_URL = 'https://gcekfesrqseyizslskmt.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_JSpZ9VyNk8FzEZyjnP8IZA_VSZzvE9E';
+const TABLE = 'treino_historico';
+
+async function sbFetch(path, options = {}) {
+  const url = `${SUPABASE_URL}/rest/v1/${path}`;
+  const res = await fetch(url, {
+    ...options,
+    headers: {
+      'apikey': SUPABASE_KEY,
+      'Authorization': `Bearer ${SUPABASE_KEY}`,
+      'Content-Type': 'application/json',
+      'Prefer': options.prefer || '',
+      ...options.headers
+    }
+  });
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(err);
+  }
+  const text = await res.text();
+  return text ? JSON.parse(text) : null;
+}
+
+async function dbInsertOrUpdate(record) {
+  // Upsert: se já existe registro para ficha+ex_idx+data_treino hoje, atualiza
+  return sbFetch(TABLE + '?on_conflict=ficha,ex_idx,data_treino', {
+    method: 'POST',
+    prefer: 'resolution=merge-duplicates,return=minimal',
+    body: JSON.stringify(record)
+  });
+}
+
+async function dbGetAll() {
+  return sbFetch(`${TABLE}?select=*&order=created_at.desc`);
+}
+
+async function dbGetForExercise(fichaKey, exIdx) {
+  return sbFetch(`${TABLE}?ficha=eq.${fichaKey}&ex_idx=eq.${exIdx}&order=created_at.desc&limit=10`);
+}
+
+/* ═══════════════════════════════════════════
+   DATA — FICHAS
+═══════════════════════════════════════════ */
+const FICHAS = {
+  perna: {
+    name: 'TREINO A — PERNA',
+    color: '#7c3aed',
+    exercises: [
+      { name: 'Agachamento na Smith', muscle: 'Quadríceps', muscleKey: 'quad', series: 3, reps: '6-12', rest: 105, obs: 'Fazer com o máximo de peso possível entre 6-12 repetições. Quando conseguir 12 reps, subir o peso. Descer até próximo de 90°, coluna neutra.', equipment: ['Smith', 'Livre'] },
+      { name: 'Leg Press 45°', muscle: 'Quadríceps', muscleKey: 'quad', series: 3, reps: '6-12', rest: 105, obs: 'Fazer com o máximo de peso possível entre 6-12 repetições. Quando conseguir 12 reps, subir o peso. Descer até próximo de 90°, coluna neutra.', equipment: ['Máquina'] },
+      { name: 'Hack Machine', muscle: 'Quadríceps', muscleKey: 'quad', series: 3, reps: '6-12', rest: 105, obs: 'Fazer com o máximo de peso possível entre 6-12 repetições. Quando conseguir 12 reps, subir o peso. Descer até próximo de 90°, coluna neutra.', equipment: ['Máquina'] },
+      { name: 'Mesa Flexora', muscle: 'Posterior de Coxa', muscleKey: 'post', series: 3, reps: '10-12', rest: 82, obs: 'Não deixar o quadril subir.', equipment: ['Máquina'] },
+      { name: 'Cadeira Flexora', muscle: 'Posterior de Coxa', muscleKey: 'post', series: 3, reps: '10-12', rest: 82, obs: 'Não deixar o quadril subir.', equipment: ['Máquina'] },
+      { name: 'Flexora em Pé', muscle: 'Posterior de Coxa', muscleKey: 'post', series: 3, reps: '10-12', rest: 82, obs: 'Não deixar o quadril subir.', equipment: ['Máquina', 'Cabo/Cross'] },
+      { name: 'Glúteo na Máquina', muscle: 'Glúteo', muscleKey: 'glut', series: 3, reps: '10-12', rest: 82, obs: 'Empurra o calcanhar, pausa em cima.', equipment: ['Máquina'] },
+      { name: 'Elevação de Quadril no Smith', muscle: 'Glúteo', muscleKey: 'glut', series: 3, reps: '10-12', rest: 82, obs: 'Empurra o calcanhar, pausa em cima.', equipment: ['Smith'] },
+      { name: 'Hip Thrust no Smith', muscle: 'Glúteo', muscleKey: 'glut', series: 3, reps: '10-12', rest: 82, obs: 'Atenção à inclinação do corpo.', equipment: ['Smith'] },
+      { name: 'Elevação de Quadril com Barra no Banco', muscle: 'Glúteo', muscleKey: 'glut', series: 3, reps: '10-12', rest: 82, obs: 'Empurra o calcanhar, pausa em cima.', equipment: ['Livre'] },
+      { name: 'Cadeira Adutora', muscle: 'Adutor', muscleKey: 'adu', series: 3, reps: '12-15', rest: 67, obs: 'Controle total, sem soltar o peso.', equipment: ['Máquina'] },
+      { name: 'Passada Lateral no Smith', muscle: 'Adutor', muscleKey: 'adu', series: 3, reps: '12-15', rest: 67, obs: 'Controle total, sem soltar o peso.', equipment: ['Smith'] },
+      { name: 'Adução no Cabo', muscle: 'Adutor', muscleKey: 'adu', series: 3, reps: '12-15', rest: 67, obs: 'Controle total, sem soltar o peso.', equipment: ['Cabo/Cross'] },
+      { name: 'Panturrilha em Pé na Máquina', muscle: 'Panturrilha', muscleKey: 'pant', series: 3, reps: '12-20', rest: 52, obs: 'Pausa embaixo e em cima, amplitude máxima.', equipment: ['Máquina'] },
+      { name: 'Panturrilha Sentado', muscle: 'Panturrilha', muscleKey: 'pant', series: 3, reps: '12-20', rest: 52, obs: 'Pausa embaixo e em cima, amplitude máxima.', equipment: ['Máquina'] },
+      { name: 'Panturrilha no Leg Press', muscle: 'Panturrilha', muscleKey: 'pant', series: 3, reps: '12-20', rest: 52, obs: 'Pausa embaixo e em cima, amplitude máxima.', equipment: ['Máquina'] },
+      { name: 'Cadeira Extensora', muscle: 'Quadríceps', muscleKey: 'quad', series: 3, reps: '12-15', rest: 82, obs: 'Segurar 1 segundo na contração. Ajustar cadeira encostando a dobra do joelho e almofada em cima do peito do pé.', equipment: ['Máquina'] },
+      { name: 'Agachamento no Smith (Pump)', muscle: 'Quadríceps', muscleKey: 'quad', series: 3, reps: '12-15', rest: 82, obs: 'Segurar 1 segundo na contração.', equipment: ['Smith'] },
+      { name: 'Agachamento com Halteres', muscle: 'Quadríceps', muscleKey: 'quad', series: 3, reps: '12-15', rest: 82, obs: 'Segurar 1 segundo na contração.', equipment: ['Livre'] },
+      { name: 'Levantamento Terra Romeno com Halteres', muscle: 'Posterior de Coxa', muscleKey: 'post', series: 3, reps: '8-10', rest: 105, obs: 'Descer até sentir alongar o posterior. Coluna firme.', equipment: ['Livre'] },
+      { name: 'Terra Romeno na Smith', muscle: 'Posterior de Coxa', muscleKey: 'post', series: 3, reps: '8-10', rest: 105, obs: 'Descer até sentir alongar o posterior. Coluna firme.', equipment: ['Smith'] },
+      { name: 'Stiff com Barra', muscle: 'Posterior de Coxa', muscleKey: 'post', series: 3, reps: '8-10', rest: 105, obs: 'Descer até sentir alongar o posterior. Coluna firme.', equipment: ['Livre'] }
+    ]
+  },
+  costas: {
+    name: 'TREINO B — COSTAS',
+    color: '#2563eb',
+    exercises: [
+      { name: 'Puxada Alta na Máquina com Pegada Aberta', muscle: 'Costas', muscleKey: 'costas', series: 3, reps: '6-12', rest: 105, obs: 'Fazer com o máximo de peso possível. Quando conseguir 12 reps, subir o peso. Foco em puxar com as costas, não com o braço.', equipment: ['Máquina', 'Cabo/Cross'] },
+      { name: 'Barra Fixa Assistida', muscle: 'Costas', muscleKey: 'costas', series: 3, reps: '6-12', rest: 105, obs: 'Foco em puxar com as costas, não com o braço.', equipment: ['Máquina'] },
+      { name: 'Rosca Direta com Barra', muscle: 'Bíceps', muscleKey: 'bicep', series: 3, reps: '8-12', rest: 82, obs: 'Sem roubar, controle na descida. Quando conseguir 12 reps, subir o peso.', equipment: ['Livre', 'Máquina'] },
+      { name: 'Rosca Scott', muscle: 'Bíceps', muscleKey: 'bicep', series: 3, reps: '8-12', rest: 82, obs: 'Sem roubar, controle na descida. Quando conseguir 12 reps, subir o peso.', equipment: ['Livre', 'Máquina', 'Cabo/Cross'] },
+      { name: 'Crucifixo Inverso na Máquina', muscle: 'Posterior de Ombro', muscleKey: 'ombro', series: 3, reps: '12-15', rest: 67, obs: 'Ombro atrás, peito aberto.', equipment: ['Máquina'] },
+      { name: 'Crucifixo Inverso no Cabo', muscle: 'Posterior de Ombro', muscleKey: 'ombro', series: 3, reps: '12-15', rest: 67, obs: 'Ombro atrás, peito aberto.', equipment: ['Cabo/Cross'] },
+      { name: 'Remada Serrote com Halter', muscle: 'Costas', muscleKey: 'costas', series: 3, reps: '6-12', rest: 90, obs: 'Fazer com o máximo de peso possível. Espremendo escápulas na fase final.', equipment: ['Livre', 'Máquina', 'Cabo/Cross'] },
+      { name: 'Remada Unilateral na Máquina', muscle: 'Costas', muscleKey: 'costas', series: 3, reps: '6-12', rest: 90, obs: 'Fazer com o máximo de peso possível. Espremendo escápulas na fase final.', equipment: ['Máquina'] },
+      { name: 'Remada Unilateral no Cabo', muscle: 'Costas', muscleKey: 'costas', series: 3, reps: '6-12', rest: 90, obs: 'Fazer com o máximo de peso possível. Espremendo escápulas na fase final.', equipment: ['Cabo/Cross'] },
+      { name: 'Rosca Martelo Cruzada', muscle: 'Bíceps', muscleKey: 'bicep', series: 3, reps: '8-12', rest: 82, obs: 'Foco no braquial e antebraço.', equipment: ['Livre', 'Cabo/Cross'] },
+      { name: 'Rosca Alternada com Halteres', muscle: 'Bíceps', muscleKey: 'bicep', series: 3, reps: '8-12', rest: 82, obs: 'Foco no braquial e antebraço.', equipment: ['Livre'] },
+      { name: 'Rosca Inversa com Halteres', muscle: 'Antebraço', muscleKey: 'bicep', series: 3, reps: '15-20', rest: 52, obs: 'Movimento curto, só punho e antebraço.', equipment: ['Livre', 'Cabo/Cross'] },
+      { name: 'Encolhimento com Halteres', muscle: 'Trapézio', muscleKey: 'costas', series: 3, reps: '10-12', rest: 67, obs: 'Subir ombros em direção às orelhas, pausa em cima.', equipment: ['Livre', 'Máquina'] },
+      { name: 'Desenvolvimento Ombro Posterior no Cross', muscle: 'Posterior de Ombro', muscleKey: 'ombro', series: 3, reps: '6-12', rest: 90, obs: 'Polia na altura do peitoral. Parte posterior do ombro.', equipment: ['Cabo/Cross'] },
+      { name: 'Pullover na Máquina', muscle: 'Costas', muscleKey: 'costas', series: 3, reps: '8-15', rest: 67, obs: 'Isolador dorsal, sem flexionar muito o cotovelo.', equipment: ['Máquina'] },
+      { name: 'Pullover na Barra', muscle: 'Costas', muscleKey: 'costas', series: 3, reps: '8-15', rest: 67, obs: 'Isolador dorsal, sem flexionar muito o cotovelo.', equipment: ['Livre'] }
+    ]
+  },
+  peito: {
+    name: 'TREINO C — PEITO',
+    color: '#ea580c',
+    exercises: [
+      { name: 'Supino 30° com Halteres / Supino Inclinado Máquina', muscle: 'Peito', muscleKey: 'peito', series: 3, reps: '6-12', rest: 90, obs: 'Banco em 30°. Ativa a parte superior do peito. Empurrar com o peito, NÃO com os ombros.', equipment: ['Livre', 'Máquina'] },
+      { name: 'Crucifixo Voador', muscle: 'Peito', muscleKey: 'peito', series: 3, reps: '6-12', rest: 90, obs: 'Ativa a parte do meio do peito. Cotovelos devem estar apontados para trás, NÃO para baixo.', equipment: ['Máquina', 'Cabo/Cross', 'Livre'] },
+      { name: 'Supino Reto Máquina', muscle: 'Peito', muscleKey: 'peito', series: 3, reps: '6-12', rest: 90, obs: 'Cotovelos devem apontar para baixo, NÃO para cima.', equipment: ['Máquina'] },
+      { name: 'Desenvolvimento de Ombro Frontal no Cross', muscle: 'Ombro', muscleKey: 'ombro', series: 3, reps: '6-12', rest: 90, obs: 'Polia na altura do tornozelo. Parte frontal do ombro.', equipment: ['Cabo/Cross'] },
+      { name: 'Tríceps Polia Baixa', muscle: 'Tríceps', muscleKey: 'tricep', series: 3, reps: '6-12', rest: 90, obs: 'Tríceps na altura do joelho.', equipment: ['Cabo/Cross'] },
+      { name: 'Desenvolvimento de Ombro Lateral no Cross', muscle: 'Ombro', muscleKey: 'ombro', series: 3, reps: '6-12', rest: 90, obs: 'Polia na altura do joelho. Parte lateral do ombro.', equipment: ['Cabo/Cross'] },
+      { name: 'Tríceps Polia Média', muscle: 'Tríceps', muscleKey: 'tricep', series: 3, reps: '6-12', rest: 90, obs: 'Tríceps na altura da cintura.', equipment: ['Cabo/Cross'] },
+      { name: 'Tríceps Polia Alta', muscle: 'Tríceps', muscleKey: 'tricep', series: 3, reps: '6-12', rest: 90, obs: 'Tríceps na altura da cabeça.', equipment: ['Cabo/Cross'] }
+    ]
+  }
+};
+
+const MUSCLE_COLORS = {
+  quad: '#7c3aed', post: '#db2777', glut: '#d97706',
+  adu: '#059669', pant: '#0891b2', costas: '#2563eb',
+  bicep: '#7c3aed', ombro: '#dc2626', peito: '#ea580c', tricep: '#16a34a'
+};
+
+const FICHA_COLORS = { perna: '#7c3aed', costas: '#2563eb', peito: '#ea580c' };
+
+/* ═══════════════════════════════════════════
+   STATE
+═══════════════════════════════════════════ */
+let currentFicha = null;
+let currentExIdx = 0;
+let timerInterval = null;
+let timerSeconds = 0;
+let timerRunning = false;
+let selectedEquipment = {};
+let seriesData = {};
+let historyDB = [];
+let histFilter = 'todos';
+let isOnline = false;
+
+/* ═══════════════════════════════════════════
+   INIT
+═══════════════════════════════════════════ */
+async function init() {
+  try {
+    historyDB = await dbGetAll() || [];
+    isOnline = true;
+    document.getElementById('sync-dot').className = 'sync-dot';
+    document.getElementById('sync-label').textContent = 'Sincronizado com a nuvem';
+  } catch(e) {
+    isOnline = false;
+    document.getElementById('sync-dot').className = 'sync-dot offline';
+    document.getElementById('sync-label').textContent = 'Sem conexão';
+    historyDB = JSON.parse(localStorage.getItem('lotz_cache') || '[]');
+  }
+  updateHomeStats();
+  document.getElementById('loading-overlay').classList.add('hidden');
+}
+
+init();
+
+/* ═══════════════════════════════════════════
+   TOAST
+═══════════════════════════════════════════ */
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+/* ═══════════════════════════════════════════
+   SCREENS
+═══════════════════════════════════════════ */
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  window.scrollTo(0, 0);
+}
+function goHome() { stopTimer(); showScreen('home'); updateHomeStats(); }
+function goFicha() { stopTimer(); openFicha(currentFicha); }
+
+/* ═══════════════════════════════════════════
+   HOME STATS
+═══════════════════════════════════════════ */
+function updateHomeStats() {
+  const sessions = new Set(historyDB.map(e => e.data_treino)).size;
+  const totalSeries = historyDB.reduce((a, e) => a + (e.series?.length || 0), 0);
+  document.getElementById('stat-treinos').textContent = sessions || 0;
+  document.getElementById('stat-series').textContent = totalSeries || 0;
+  document.getElementById('stat-exercicios').textContent = historyDB.length || 0;
+}
+
+/* ═══════════════════════════════════════════
+   FICHA
+═══════════════════════════════════════════ */
+function openFicha(fichaKey) {
+  currentFicha = fichaKey;
+  const ficha = FICHAS[fichaKey];
+  document.getElementById('ficha-title').textContent = ficha.name;
+  const today = new Date().toDateString();
+  const body = document.getElementById('ficha-body');
+  body.innerHTML = '';
+  ficha.exercises.forEach((ex, i) => {
+    const color = MUSCLE_COLORS[ex.muscleKey] || '#666';
+    const done = historyDB.some(e => e.data_treino === today && e.ficha === fichaKey && e.ex_idx === i);
+    const div = document.createElement('div');
+    div.className = 'ex-row fade-in' + (done ? ' done-today' : '');
+    div.onclick = () => openExercise(i);
+    div.innerHTML = `
+      <div class="ex-num">${i + 1}</div>
+      <div class="ex-info">
+        <div class="ex-name">${ex.name}</div>
+        <div class="ex-meta">${ex.muscle} · ${ex.series}x ${ex.reps} · ${formatTime(ex.rest)}</div>
+      </div>
+      <div class="ex-muscle-dot" style="background:${color}"></div>
+      ${done ? '<div class="ex-done-check">✓</div>' : ''}
+    `;
+    body.appendChild(div);
+  });
+  showScreen('ficha');
+}
+
+/* ═══════════════════════════════════════════
+   EXERCÍCIO DETAIL
+═══════════════════════════════════════════ */
+function openExercise(idx) {
+  currentExIdx = idx;
+  renderExercise();
+  showScreen('exercicio');
+}
+
+function renderExercise() {
+  const ficha = FICHAS[currentFicha];
+  const ex = ficha.exercises[currentExIdx];
+  const total = ficha.exercises.length;
+  document.getElementById('ex-title').textContent = ex.name;
+  document.getElementById('ex-counter').textContent = `${currentExIdx + 1}/${total}`;
+  document.getElementById('ex-progress').style.width = `${((currentExIdx + 1) / total) * 100}%`;
+  document.getElementById('btn-prev').style.display = currentExIdx === 0 ? 'none' : '';
+  document.getElementById('btn-next').textContent = currentExIdx === total - 1 ? '✓ Concluir Treino' : 'Próximo →';
+
+  const eqKey = `${currentFicha}_${currentExIdx}`;
+  if (!selectedEquipment[eqKey]) selectedEquipment[eqKey] = ex.equipment[0];
+  const today = new Date().toDateString();
+  const rec = getWeightRec(currentFicha, currentExIdx);
+  const color = MUSCLE_COLORS[ex.muscleKey] || '#666';
+
+  let html = '';
+
+  // Visual
+  html += `<div class="ex-visual">
+    <div class="ex-visual-placeholder">[ Execução: ${ex.name} ]</div>
+    <div class="ex-muscle-tag" style="background:${color}22;color:${color};border:1px solid ${color}44">${ex.muscle}</div>
+  </div>`;
+
+  // Equipment
+  if (ex.equipment.length > 1) {
+    html += `<div class="equipment-selector">`;
+    ex.equipment.forEach(eq => {
+      html += `<button class="eq-btn ${selectedEquipment[eqKey] === eq ? 'active' : ''}" onclick="selectEquipment('${eq}')">${eq}</button>`;
+    });
+    html += `</div>`;
+  } else {
+    html += `<div class="equipment-selector"><button class="eq-btn active">${ex.equipment[0]}</button></div>`;
+  }
+
+  // Obs
+  html += `<div class="obs-card"><strong>📋 Observação</strong>${ex.obs}</div>`;
+
+  // Weight rec
+  if (rec) {
+    html += `<div class="weight-rec">
+      <div class="weight-rec-icon">🎯</div>
+      <div class="weight-rec-text">
+        <div class="weight-rec-label">Peso recomendado (média últimos 3)</div>
+        <div class="weight-rec-val">${rec.avg} kg</div>
+        <div class="weight-rec-sub">${rec.detail}</div>
+      </div>
+    </div>`;
+  }
+
+  // Series
+  html += `<div class="series-section">
+    <div class="series-header">
+      <div class="series-title">Séries</div>
+      <div class="rep-range">${ex.reps} reps</div>
+    </div>
+    <div class="series-rows">`;
+  for (let s = 0; s < ex.series; s++) {
+    const sKey = `${currentFicha}_${currentExIdx}_${today}_${s}`;
+    const saved = seriesData[sKey] || {};
+    html += `
+      <div class="serie-row ${saved.done ? 'done' : ''}" id="sr-${s}">
+        <div class="serie-label">S${s + 1}</div>
+        <div class="serie-input-group">
+          <div class="serie-input-wrap">
+            <div class="serie-input-label">Peso (kg)</div>
+            <input type="number" class="serie-input" id="peso-${s}" value="${saved.peso || ''}" placeholder="—" step="0.5" min="0" inputmode="decimal" onchange="saveSerieData(${s})">
+          </div>
+          <div class="serie-input-wrap">
+            <div class="serie-input-label">Reps</div>
+            <input type="number" class="serie-input" id="reps-${s}" value="${saved.reps || ''}" placeholder="—" min="0" inputmode="numeric" onchange="saveSerieData(${s})">
+          </div>
+        </div>
+        <div class="serie-check ${saved.done ? 'done' : ''}" id="sc-${s}" onclick="toggleSerie(${s})">${saved.done ? '✓' : ''}</div>
+      </div>`;
+  }
+  html += `</div></div>`;
+
+  // Timer
+  html += `<div class="timer-card">
+    <div class="timer-label">Descanso</div>
+    <div class="timer-display" id="timer-disp">${fmtTimer(ex.rest)}</div>
+    <div class="timer-controls">
+      <button class="timer-btn" onclick="resetTimer(${ex.rest})">Reset</button>
+      <button class="timer-btn primary" id="timer-toggle" onclick="toggleTimer()">▶ Iniciar</button>
+    </div>
+    <div class="timer-presets">
+      <div class="timer-preset" onclick="setTimer(45)">45s</div>
+      <div class="timer-preset" onclick="setTimer(60)">1min</div>
+      <div class="timer-preset" onclick="setTimer(75)">1:15</div>
+      <div class="timer-preset" onclick="setTimer(90)">1:30</div>
+      <div class="timer-preset" onclick="setTimer(105)">1:45</div>
+      <div class="timer-preset" onclick="setTimer(120)">2min</div>
+    </div>
+  </div>`;
+
+  document.getElementById('ex-body').innerHTML = html;
+  if (!timerRunning) timerSeconds = ex.rest;
+}
+
+function selectEquipment(eq) {
+  selectedEquipment[`${currentFicha}_${currentExIdx}`] = eq;
+  renderExercise();
+}
+
+function saveSerieData(s) {
+  const today = new Date().toDateString();
+  const sKey = `${currentFicha}_${currentExIdx}_${today}_${s}`;
+  if (!seriesData[sKey]) seriesData[sKey] = {};
+  seriesData[sKey].peso = document.getElementById(`peso-${s}`)?.value || '';
+  seriesData[sKey].reps = document.getElementById(`reps-${s}`)?.value || '';
+}
+
+function toggleSerie(s) {
+  const today = new Date().toDateString();
+  const sKey = `${currentFicha}_${currentExIdx}_${today}_${s}`;
+  saveSerieData(s);
+  if (!seriesData[sKey]) seriesData[sKey] = {};
+  seriesData[sKey].done = !seriesData[sKey].done;
+  const sc = document.getElementById(`sc-${s}`);
+  const sr = document.getElementById(`sr-${s}`);
+  if (seriesData[sKey].done) {
+    sc.classList.add('done'); sc.textContent = '✓';
+    sr.classList.add('done');
+    const ex = FICHAS[currentFicha].exercises[currentExIdx];
+    setTimer(ex.rest); startTimer();
+  } else {
+    sc.classList.remove('done'); sc.textContent = '';
+    sr.classList.remove('done');
+  }
+}
+
+/* ═══════════════════════════════════════════
+   WEIGHT RECOMMENDATION
+═══════════════════════════════════════════ */
+function getWeightRec(fichaKey, exIdx) {
+  const past = historyDB
+    .filter(e => e.ficha === fichaKey && e.ex_idx === exIdx && e.series?.length > 0)
+    .slice(0, 3);
+  if (!past.length) return null;
+  const avgWeights = past.map(entry => {
+    const ws = (entry.series || []).map(s => parseFloat(s.peso)).filter(w => !isNaN(w) && w > 0);
+    return ws.length ? ws.reduce((a, b) => a + b, 0) / ws.length : null;
+  }).filter(w => w !== null);
+  if (!avgWeights.length) return null;
+  const avg = (avgWeights.reduce((a, b) => a + b, 0) / avgWeights.length).toFixed(1);
+  return { avg, detail: `Baseado em ${past.length} treino${past.length > 1 ? 's' : ''} anterior${past.length > 1 ? 'es' : ''}` };
+}
+
+/* ═══════════════════════════════════════════
+   SAVE TO CLOUD
+═══════════════════════════════════════════ */
+async function saveExerciseToCloud() {
+  const ex = FICHAS[currentFicha].exercises[currentExIdx];
+  const today = new Date().toDateString();
+  const eqKey = `${currentFicha}_${currentExIdx}`;
+  const series = [];
+  for (let s = 0; s < ex.series; s++) {
+    const sKey = `${currentFicha}_${currentExIdx}_${today}_${s}`;
+    const d = seriesData[sKey] || {};
+    if (d.peso || d.reps) series.push({ peso: d.peso || '', reps: d.reps || '' });
+  }
+  if (!series.length) return;
+
+  const record = {
+    data_treino: today,
+    ficha: currentFicha,
+    ex_idx: currentExIdx,
+    ex_nome: ex.name,
+    equipamento: selectedEquipment[eqKey] || ex.equipment[0],
+    series
+  };
+
+  try {
+    await dbInsertOrUpdate(record);
+    // Update local cache
+    historyDB = historyDB.filter(e => !(e.data_treino === today && e.ficha === currentFicha && e.ex_idx === currentExIdx));
+    historyDB.unshift(record);
+    localStorage.setItem('lotz_cache', JSON.stringify(historyDB));
+    showToast('✓ Salvo na nuvem');
+  } catch(e) {
+    // Save to local cache as fallback
+    historyDB = historyDB.filter(e => !(e.data_treino === today && e.ficha === currentFicha && e.ex_idx === currentExIdx));
+    historyDB.unshift(record);
+    localStorage.setItem('lotz_cache', JSON.stringify(historyDB));
+    showToast('Salvo localmente (sem conexão)');
+  }
+}
+
+/* ═══════════════════════════════════════════
+   NAVIGATION
+═══════════════════════════════════════════ */
+async function navEx(dir) {
+  await saveExerciseToCloud();
+  const total = FICHAS[currentFicha].exercises.length;
+  const next = currentExIdx + dir;
+  stopTimer();
+  if (next < 0) { goFicha(); return; }
+  if (next >= total) {
+    showToast('🏆 Treino concluído!');
+    setTimeout(() => goHome(), 800);
+    return;
+  }
+  currentExIdx = next;
+  renderExercise();
+  document.getElementById('ex-body').scrollTop = 0;
+}
+
+/* ═══════════════════════════════════════════
+   TIMER
+═══════════════════════════════════════════ */
+function fmtTimer(s) { return `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`; }
+
+function setTimer(secs, update = true) {
+  stopTimer();
+  timerSeconds = secs;
+  if (update) {
+    const d = document.getElementById('timer-disp');
+    if (d) { d.textContent = fmtTimer(secs); d.className = 'timer-display'; }
+  }
+}
+
+function startTimer() {
+  if (timerRunning) return;
+  timerRunning = true;
+  const toggle = document.getElementById('timer-toggle');
+  const disp = document.getElementById('timer-disp');
+  if (disp) disp.classList.add('running');
+  if (toggle) toggle.textContent = '⏸ Pausar';
+  timerInterval = setInterval(() => {
+    timerSeconds--;
+    const d = document.getElementById('timer-disp');
+    if (timerSeconds <= 0) {
+      stopTimer();
+      if (d) { d.textContent = 'VAI!'; d.className = 'timer-display done-timer'; }
+      return;
+    }
+    if (d) d.textContent = fmtTimer(timerSeconds);
+  }, 1000);
+}
+
+function stopTimer() {
+  clearInterval(timerInterval);
+  timerRunning = false;
+  const toggle = document.getElementById('timer-toggle');
+  const disp = document.getElementById('timer-disp');
+  if (toggle) toggle.textContent = '▶ Iniciar';
+  if (disp) disp.classList.remove('running', 'done-timer');
+}
+
+function toggleTimer() { timerRunning ? stopTimer() : startTimer(); }
+function resetTimer(secs) { setTimer(secs); }
+
+/* ═══════════════════════════════════════════
+   HISTÓRICO
+═══════════════════════════════════════════ */
+function filterHist(f) {
+  histFilter = f;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+  renderHistorico();
+}
+
+async function openHistorico() {
+  try {
+    historyDB = await dbGetAll() || [];
+  } catch(e) {}
+  renderHistorico();
+  showScreen('historico');
+}
+
+function renderHistorico() {
+  const filtered = histFilter === 'todos' ? historyDB : historyDB.filter(e => e.ficha === histFilter);
+  const body = document.getElementById('hist-body');
+  if (!filtered.length) {
+    body.innerHTML = `<div class="empty-state"><div class="icon">📭</div>Nenhum treino registrado ainda.</div>`;
+    return;
+  }
+  // Group by date
+  const groups = {};
+  filtered.forEach(e => {
+    if (!groups[e.data_treino]) groups[e.data_treino] = [];
+    groups[e.data_treino].push(e);
+  });
+  body.innerHTML = Object.entries(groups).map(([date, entries]) => `
+    <div class="hist-date-group fade-in">
+      <div class="hist-date-label">${date}</div>
+      ${entries.map(e => {
+        const fc = FICHA_COLORS[e.ficha] || '#666';
+        return `<div class="hist-entry">
+          <div class="hist-entry-top">
+            <span class="hist-ficha-tag" style="background:${fc}22;color:${fc};border:1px solid ${fc}44">${e.ficha?.toUpperCase()}</span>
+            <div class="hist-ex-name">${e.ex_nome}</div>
+            <div class="hist-eq">${e.equipamento || ''}</div>
+          </div>
+          <div class="hist-series">
+            ${(e.series || []).map((s, i) => `<span class="hist-serie-tag">S${i+1}: ${s.peso||'?'}kg × ${s.reps||'?'}</span>`).join('')}
+          </div>
+        </div>`;
+      }).join('')}
+    </div>
+  `).join('');
+}
+
+function closeHistorico() {
+  if (currentFicha) showScreen('ficha');
+  else goHome();
+}
+
+/* ═══════════════════════════════════════════
+   UTILS
+═══════════════════════════════════════════ */
+function formatTime(secs) {
+  if (secs < 60) return `${secs}s`;
+  const m = Math.floor(secs / 60), s = secs % 60;
+  return s ? `${m}min ${s}s` : `${m}min`;
+}
+</script>
+</body>
+</html>
