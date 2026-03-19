@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Treinos by Luccão Gigante</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0f; --surface: #12121a; --surface2: #1a1a26; --border: #2a2a3e;
+    --accent: #e8ff00; --accent2: #00d4ff; --accent3: #ff4d6d; --text: #f0f0f0; --muted: #666680;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; min-height: 100vh; overflow-x: hidden; -webkit-font-smoothing: antialiased; }
+  .screen { display: none; min-height: 100vh; flex-direction: column; }
+  .screen.active { display: flex; }
+
+  #toast { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); background: var(--surface2); border: 1px solid var(--border); color: var(--text); padding: 10px 20px; border-radius: 20px; font-size: 13px; z-index: 9999; opacity: 0; transition: opacity 0.3s; pointer-events: none; white-space: nowrap; }
+  #toast.show { opacity: 1; }
+
+  #loading-overlay { position: fixed; inset: 0; background: var(--bg); display: flex; align-items: center; justify-content: center; z-index: 9998; flex-direction: column; gap: 20px; }
+  #loading-overlay.hidden { display: none; }
+  .loading-logo { font-family: 'Bebas Neue', sans-serif; color: var(--accent); text-align: center; line-height: 1.3; font-size: 20px; letter-spacing: 2px; }
+  .loading-logo span { font-size: 42px; display: block; letter-spacing: 3px; }
+  .loading-spinner { width: 32px; height: 32px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .page-header { padding: 20px 20px 14px; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--bg); z-index: 10; display: flex; align-items: center; gap: 12px; }
+  .page-title { font-family: 'Bebas Neue', sans-serif; font-size: 22px; letter-spacing: 2px; flex: 1; line-height: 1.2; }
+  .btn-back { background: var(--surface); border: 1px solid var(--border); color: var(--text); width: 38px; height: 38px; border-radius: 10px; cursor: pointer; font-size: 18px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .btn-sm { background: var(--surface); border: 1px solid var(--border); color: var(--muted); padding: 7px 12px; border-radius: 9px; cursor: pointer; font-size: 11px; font-family: 'DM Sans', sans-serif; white-space: nowrap; }
+
+  /* HOME */
+  #home { background: var(--bg); }
+  .home-header { padding: 48px 28px 0; }
+  .home-logo { font-family: 'Bebas Neue', sans-serif; font-size: 17px; letter-spacing: 2px; color: var(--muted); }
+  .home-logo span { font-size: 36px; display: block; color: var(--accent); line-height: 1; letter-spacing: 3px; }
+  .sync-status { display: flex; align-items: center; gap: 6px; margin-top: 10px; font-size: 11px; color: var(--muted); }
+  .sync-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
+  .sync-dot.offline { background: var(--accent3); }
+  .home-body { padding: 28px 28px; flex: 1; }
+  .section-label { font-size: 11px; letter-spacing: 3px; text-transform: uppercase; color: var(--muted); margin-bottom: 14px; }
+  .workout-cards { display: flex; flex-direction: column; gap: 10px; margin-bottom: 28px; }
+  .workout-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 20px 20px; cursor: pointer; position: relative; overflow: hidden; }
+  .workout-card::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; border-radius: 4px 0 0 4px; }
+  .wc-peito::before { background: #ea580c; }
+  .wc-costas::before { background: #2563eb; }
+  .wc-perna::before { background: #7c3aed; }
+  .workout-card:active { transform: scale(0.98); }
+  .wc-name { font-family: 'Bebas Neue', sans-serif; font-size: 24px; letter-spacing: 2px; line-height: 1; }
+  .wc-muscles { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .wc-badges { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+  .wc-badge { font-size: 11px; padding: 3px 9px; border-radius: 20px; background: var(--surface2); color: var(--muted); }
+  .wc-arrow { position: absolute; right: 20px; top: 50%; transform: translateY(-50%); font-size: 22px; color: var(--muted); }
+  .home-stats { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 18px 20px; }
+  .stats-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-top: 12px; }
+  .stat-item { text-align: center; }
+  .stat-num { font-family: 'Bebas Neue', sans-serif; font-size: 30px; color: var(--accent); line-height: 1; }
+  .stat-lbl { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+  /* FICHA */
+  #ficha { background: var(--bg); }
+  .ficha-body { padding: 16px; flex: 1; display: flex; flex-direction: column; gap: 8px; padding-bottom: 40px; }
+  .ficha-section-label { font-size: 10px; letter-spacing: 3px; text-transform: uppercase; color: var(--muted); margin-top: 10px; margin-bottom: 2px; padding: 0 2px; }
+  .subgroup-btn { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 16px; cursor: pointer; display: flex; align-items: center; gap: 14px; }
+  .subgroup-btn:active { transform: scale(0.98); }
+  .subgroup-btn.sg-done { border-color: rgba(232,255,0,0.3); }
+  .sg-icon { font-size: 24px; width: 42px; height: 42px; background: var(--surface2); border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .sg-info { flex: 1; }
+  .sg-name { font-family: 'Bebas Neue', sans-serif; font-size: 18px; letter-spacing: 1px; line-height: 1; }
+  .sg-sub { font-size: 11px; color: var(--muted); margin-top: 3px; }
+  .sg-done-icon { color: var(--accent); font-size: 16px; flex-shrink: 0; }
+  .sg-arrow { color: var(--muted); font-size: 20px; flex-shrink: 0; }
+
+  /* OPÇÕES */
+  #opcoes { background: var(--bg); }
+  .opcoes-body { padding: 14px; flex: 1; display: flex; flex-direction: column; gap: 12px; padding-bottom: 100px; overflow-y: auto; }
+  .opcao-card { background: var(--surface); border: 2px solid var(--border); border-radius: 14px; overflow: hidden; cursor: pointer; transition: border-color 0.15s; }
+  .opcao-card:active { transform: scale(0.99); }
+  .opcao-card.selected { border-color: var(--accent); }
+  .opcao-header { padding: 14px 14px 8px; display: flex; align-items: flex-start; gap: 10px; }
+  .opcao-eq-tag { font-size: 10px; padding: 3px 10px; border-radius: 20px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; flex-shrink: 0; margin-top: 2px; }
+  .eq-livre-barra { background: rgba(234,88,12,0.15); color: #ea580c; border: 1px solid rgba(234,88,12,0.3); }
+  .eq-livre-halter { background: rgba(220,38,38,0.15); color: #f87171; border: 1px solid rgba(220,38,38,0.3); }
+  .eq-cross { background: rgba(0,212,255,0.12); color: #00d4ff; border: 1px solid rgba(0,212,255,0.25); }
+  .eq-maquina { background: rgba(124,58,237,0.15); color: #a78bfa; border: 1px solid rgba(124,58,237,0.3); }
+  .opcao-name { font-weight: 600; font-size: 14px; flex: 1; line-height: 1.3; }
+  .opcao-meta { font-size: 11px; color: var(--muted); padding: 0 14px 8px; }
+  .opcao-img { width: 100%; height: 130px; object-fit: contain; background: #0f0f18; display: block; }
+  .opcao-img-placeholder { height: 80px; background: #0f0f18; display: flex; align-items: center; justify-content: center; color: #2a2a3e; font-size: 11px; }
+  .opcao-obs { padding: 10px 14px 14px; font-size: 12px; color: #aab; line-height: 1.6; border-top: 1px solid var(--border); }
+  .opcao-obs strong { color: var(--accent2); font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase; display: block; margin-bottom: 4px; }
+
+  .btn-selecionar-wrap { position: fixed; bottom: 0; left: 0; right: 0; padding: 12px 16px; background: var(--bg); border-top: 1px solid var(--border); display: none; }
+  .btn-selecionar-wrap.visible { display: block; }
+  .btn-selecionar { width: 100%; padding: 14px; border-radius: 12px; border: none; background: var(--accent); color: #000; font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 700; cursor: pointer; }
+
+  /* EXERCÍCIO */
+  #exercicio { background: var(--bg); }
+  .ex-header { padding: 16px 16px 12px; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--bg); z-index: 10; }
+  .ex-header-top { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .ex-progress-bar { height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; }
+  .ex-progress-fill { height: 100%; background: var(--accent); border-radius: 2px; transition: width 0.4s; }
+  .ex-header-title { font-family: 'Bebas Neue', sans-serif; font-size: 19px; letter-spacing: 1px; flex: 1; line-height: 1.2; }
+  .ex-counter { font-size: 10px; color: var(--muted); flex-shrink: 0; }
+  .ex-body { padding: 14px; flex: 1; overflow-y: auto; padding-bottom: 8px; }
+
+  .ex-visual { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; margin-bottom: 12px; position: relative; }
+  .ex-visual img { width: 100%; height: 160px; object-fit: contain; background: #0f0f18; display: block; }
+  .ex-visual-placeholder { height: 90px; display: flex; align-items: center; justify-content: center; background: #0f0f18; color: #2a2a3e; font-size: 11px; text-align: center; padding: 12px; }
+  .ex-muscle-tag { position: absolute; top: 10px; left: 10px; font-size: 10px; padding: 3px 9px; border-radius: 20px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; }
+  .ex-eq-tag { position: absolute; top: 10px; right: 10px; }
+
+  .obs-card { background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--accent2); border-radius: 12px; padding: 12px 14px; margin-bottom: 12px; font-size: 13px; color: #ccd; line-height: 1.6; }
+  .obs-card strong { color: var(--accent2); font-size: 9px; letter-spacing: 2px; text-transform: uppercase; display: block; margin-bottom: 5px; }
+
+  .weight-rec { background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: 12px; padding: 12px 14px; margin-bottom: 12px; display: flex; align-items: center; gap: 12px; }
+  .weight-rec-icon { font-size: 20px; }
+  .weight-rec-text { flex: 1; }
+  .weight-rec-label { font-size: 9px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; }
+  .weight-rec-val { font-family: 'Bebas Neue', sans-serif; font-size: 26px; color: var(--accent); line-height: 1.1; }
+  .weight-rec-sub { font-size: 10px; color: var(--muted); margin-top: 1px; }
+
+  .series-section { margin-bottom: 12px; }
+  .series-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .series-title { font-size: 10px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; }
+  .rep-range { font-family: 'Bebas Neue', sans-serif; font-size: 18px; color: var(--accent); }
+  .series-rows { display: flex; flex-direction: column; gap: 7px; }
+  .serie-row { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; display: flex; align-items: center; gap: 10px; }
+  .serie-row.done { border-color: rgba(232,255,0,0.25); background: rgba(232,255,0,0.03); }
+  .serie-label { font-family: 'Bebas Neue', sans-serif; font-size: 18px; color: var(--muted); width: 26px; }
+  .serie-input-group { display: flex; gap: 7px; flex: 1; }
+  .serie-input-wrap { flex: 1; }
+  .serie-input-label { font-size: 9px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 3px; }
+  .serie-input { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 18px; font-weight: 500; padding: 7px 8px; text-align: center; outline: none; -webkit-appearance: none; }
+  .serie-input:focus { border-color: var(--accent); }
+  .serie-check { width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface2); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
+  .serie-check.done { background: var(--accent); border-color: var(--accent); color: #000; font-weight: 700; }
+
+  .timer-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 16px; text-align: center; margin-bottom: 12px; }
+  .timer-display { font-family: 'Bebas Neue', sans-serif; font-size: 64px; color: var(--accent); line-height: 1; letter-spacing: 4px; }
+  .timer-display.running { color: var(--accent2); }
+  .timer-display.done-timer { color: var(--accent3); }
+  .timer-label { font-size: 10px; color: var(--muted); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 10px; }
+  .timer-controls { display: flex; gap: 8px; justify-content: center; margin-top: 10px; }
+  .timer-btn { padding: 8px 16px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface2); color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 13px; cursor: pointer; }
+  .timer-btn.primary { background: var(--accent); color: #000; border-color: var(--accent); font-weight: 600; }
+  .timer-presets { display: flex; gap: 5px; justify-content: center; margin-top: 8px; flex-wrap: wrap; }
+  .timer-preset { font-size: 11px; padding: 4px 9px; border-radius: 20px; border: 1px solid var(--border); background: var(--surface2); color: var(--muted); cursor: pointer; }
+
+  .ex-nav { display: flex; gap: 9px; padding: 12px 14px; border-top: 1px solid var(--border); position: sticky; bottom: 0; background: var(--bg); }
+  .nav-btn { flex: 1; padding: 13px; border-radius: 12px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 500; cursor: pointer; }
+  .nav-btn.primary { background: var(--accent); color: #000; border-color: var(--accent); font-weight: 700; }
+
+  /* HISTÓRICO */
+  #historico { background: var(--bg); }
+  .hist-filter { display: flex; gap: 7px; padding: 12px 14px 6px; flex-wrap: wrap; }
+  .filter-btn { font-size: 11px; padding: 5px 12px; border-radius: 20px; border: 1px solid var(--border); background: var(--surface); color: var(--muted); cursor: pointer; }
+  .filter-btn.active { border-color: var(--accent); color: var(--accent); background: rgba(232,255,0,0.07); }
+  .hist-body { padding: 8px 14px 40px; flex: 1; overflow-y: auto; }
+  .hist-date-group { margin-bottom: 18px; }
+  .hist-date-label { font-size: 10px; color: var(--muted); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 8px; }
+  .hist-entry { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px; margin-bottom: 7px; }
+  .hist-entry-top { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; flex-wrap: wrap; }
+  .hist-ficha-tag { font-size: 10px; padding: 2px 8px; border-radius: 10px; font-weight: 600; }
+  .hist-ex-name { font-weight: 500; font-size: 13px; flex: 1; }
+  .hist-eq { font-size: 11px; color: var(--muted); margin-bottom: 6px; }
+  .hist-series { display: flex; flex-wrap: wrap; gap: 5px; }
+  .hist-serie-tag { font-size: 11px; padding: 3px 8px; border-radius: 6px; background: var(--surface2); color: var(--muted); }
+  .empty-state { text-align: center; padding: 60px 24px; color: var(--muted); font-size: 14px; }
+  .empty-state .icon { font-size: 44px; margin-bottom: 12px; }
+
+  @keyframes fadeIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
+  .fade-in { animation: fadeIn 0.25s ease; }
+</style>
+</head>
+<body>
+
+<div id="loading-overlay">
+  <div class="loading-logo">Treinos by <span>Luccão Gigante</span></div>
+  <div class="loading-spinner"></div>
+</div>
+<div id="toast"></div>
+
+<!-- HOME -->
+<div id="home" class="screen">
+  <div class="home-header">
+    <div class="home-logo">Treinos by <span>Luccão Gigante</span></div>
+    <div class="sync-status"><div class="sync-dot" id="sync-dot"></div><span id="sync-label">Conectando...</span></div>
+  </div>
+  <div class="home-body">
+    <div class="section-label">Selecione o treino do dia</div>
+    <div class="workout-cards">
+      <div class="workout-card wc-peito" onclick="openFicha('peito')">
+        <div class="wc-name">TREINO A — PEITO</div>
+        <div class="wc-muscles">Peito · Tríceps · Ombro</div>
+        <div class="wc-badges"><span class="wc-badge">8 subgrupos</span><span class="wc-badge">4 opções por equipamento</span></div>
+        <div class="wc-arrow">›</div>
+      </div>
+      <div class="workout-card wc-costas" onclick="openFicha('costas')">
+        <div class="wc-name">TREINO B — COSTAS</div>
+        <div class="wc-muscles">Costas · Bíceps · Antebraço · Trapézio</div>
+        <div class="wc-badges"><span class="wc-badge">6 subgrupos</span><span class="wc-badge">4 opções por equipamento</span></div>
+        <div class="wc-arrow">›</div>
+      </div>
+      <div class="workout-card wc-perna" onclick="openFicha('perna')">
+        <div class="wc-name">TREINO C — PERNAS</div>
+        <div class="wc-muscles">Quadríceps · Posterior · Glúteo · Adutor · Panturrilha</div>
+        <div class="wc-badges"><span class="wc-badge">5 subgrupos</span><span class="wc-badge">4 opções por equipamento</span></div>
+        <div class="wc-arrow">›</div>
+      </div>
+    </div>
+    <div class="home-stats">
+      <div class="section-label">Estatísticas</div>
+      <div class="stats-grid">
+        <div class="stat-item"><div class="stat-num" id="stat-treinos">—</div><div class="stat-lbl">Sessões</div></div>
+        <div class="stat-item"><div class="stat-num" id="stat-series">—</div><div class="stat-lbl">Séries</div></div>
+        <div class="stat-item"><div class="stat-num" id="stat-exercicios">—</div><div class="stat-lbl">Exercícios</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- FICHA -->
+<div id="ficha" class="screen">
+  <div class="page-header">
+    <button class="btn-back" onclick="goHome()">←</button>
+    <div class="page-title" id="ficha-title">TREINO</div>
+    <button class="btn-sm" onclick="openHistorico()">📊 Histórico</button>
+  </div>
+  <div class="ficha-body" id="ficha-body"></div>
+</div>
+
+<!-- OPÇÕES -->
+<div id="opcoes" class="screen">
+  <div class="page-header">
+    <button class="btn-back" onclick="goFicha()">←</button>
+    <div class="page-title" id="opcoes-title">OPÇÕES</div>
+  </div>
+  <div class="opcoes-body" id="opcoes-body"></div>
+  <div class="btn-selecionar-wrap" id="btn-sel-wrap">
+    <button class="btn-selecionar" onclick="confirmSelection()">✓ Iniciar Exercício Selecionado</button>
+  </div>
+</div>
+
+<!-- EXERCÍCIO -->
+<div id="exercicio" class="screen">
+  <div class="ex-header">
+    <div class="ex-header-top">
+      <button class="btn-back" onclick="goOpcoes()">←</button>
+      <div class="ex-header-title" id="ex-title"></div>
+      <div class="ex-counter" id="ex-counter"></div>
+    </div>
+    <div class="ex-progress-bar"><div class="ex-progress-fill" id="ex-progress" style="width:0%"></div></div>
+  </div>
+  <div class="ex-body" id="ex-body"></div>
+  <div class="ex-nav">
+    <button class="nav-btn" onclick="goFicha()">← Ficha</button>
+    <button class="nav-btn primary" onclick="finishExercise()">✓ Concluir</button>
+  </div>
+</div>
+
+<!-- HISTÓRICO -->
+<div id="historico" class="screen">
+  <div class="page-header">
+    <button class="btn-back" onclick="closeHistorico()">←</button>
+    <div class="page-title">HISTÓRICO</div>
+  </div>
+  <div class="hist-filter">
+    <div class="filter-btn active" onclick="filterHist('todos',this)">Todos</div>
+    <div class="filter-btn" onclick="filterHist('peito',this)">Peito</div>
+    <div class="filter-btn" onclick="filterHist('costas',this)">Costas</div>
+    <div class="filter-btn" onclick="filterHist('perna',this)">Pernas</div>
+  </div>
+  <div class="hist-body" id="hist-body"></div>
+</div>
+
+<script>
+/* ── IMAGENS ── */
+const IMGS = {
+  'Supino Inclinado com Barra':        'https://wger.de/media/exercise-images/192/Incline-Barbell-Bench-Press-1.png',
+  'Supino Inclinado com Halteres':     'https://wger.de/media/exercise-images/153/Incline-Dumbbell-Bench-Press-1.png',
+  'Cross Over de Baixo para Cima':     'https://wger.de/media/exercise-images/213/Cable-Crossover-1.png',
+  'Supino Inclinado Máquina':          'https://wger.de/media/exercise-images/153/Incline-Dumbbell-Bench-Press-1.png',
+  'Supino Reto com Barra':             'https://wger.de/media/exercise-images/25/Bench-Press---Barbell-1.png',
+  'Crucifixo com Halteres':            'https://wger.de/media/exercise-images/63/Dumbbell-Flyes-1.png',
+  'Crucifixo Voador no Cabo':          'https://wger.de/media/exercise-images/213/Cable-Crossover-1.png',
+  'Supino Reto Máquina / Crucifixo Voador': 'https://wger.de/media/exercise-images/63/Dumbbell-Flyes-1.png',
+  'Supino Declinado com Barra':        'https://wger.de/media/exercise-images/309/Decline-Barbell-Bench-Press-1.png',
+  'Supino Declinado com Halteres':     'https://wger.de/media/exercise-images/309/Decline-Barbell-Bench-Press-1.png',
+  'Cross Over de Cima para Baixo':     'https://wger.de/media/exercise-images/213/Cable-Crossover-1.png',
+  'Supino Declinado Máquina':          'https://wger.de/media/exercise-images/309/Decline-Barbell-Bench-Press-1.png',
+  'Tríceps Testa com Barra (Skull Crusher)': 'https://wger.de/media/exercise-images/35/Skull-Crushers---Barbell-1.png',
+  'Tríceps Francês com Halteres':      'https://wger.de/media/exercise-images/35/Skull-Crushers---Barbell-1.png',
+  'Tríceps Polia Alta':                'https://wger.de/media/exercise-images/59/Pushdown-1.png',
+  'Tríceps Máquina (extensão acima)':  'https://wger.de/media/exercise-images/59/Pushdown-1.png',
+  'Mergulho nas Paralelas com peso':   'https://wger.de/media/exercise-images/39/Dips---Triceps-Version-1.png',
+  'Kickback com Halter':               'https://wger.de/media/exercise-images/147/Dumbbell-Kickback-1.png',
+  'Tríceps Polia Média':               'https://wger.de/media/exercise-images/59/Pushdown-1.png',
+  'Tríceps Máquina (extensão paralela)':'https://wger.de/media/exercise-images/59/Pushdown-1.png',
+  'Bench Dip (Tríceps no Banco)':      'https://wger.de/media/exercise-images/39/Dips---Triceps-Version-1.png',
+  'Extensão de Tríceps Neutro com Halter':'https://wger.de/media/exercise-images/147/Dumbbell-Kickback-1.png',
+  'Tríceps Polia Baixa':               'https://wger.de/media/exercise-images/59/Pushdown-1.png',
+  'Tríceps Máquina (polia neutra)':    'https://wger.de/media/exercise-images/59/Pushdown-1.png',
+  'Desenvolvimento Militar com Barra': 'https://wger.de/media/exercise-images/72/Barbell-Shoulder-Press-1.png',
+  'Elevação Frontal com Halteres':     'https://wger.de/media/exercise-images/68/Front-Dumbbell-Raise-1.png',
+  'Desenvolvimento de Ombro Frontal no Cross':'https://wger.de/media/exercise-images/68/Front-Dumbbell-Raise-1.png',
+  'Desenvolvimento de Ombro na Máquina':'https://wger.de/media/exercise-images/72/Barbell-Shoulder-Press-1.png',
+  'Upright Row com Barra':             'https://wger.de/media/exercise-images/78/Upright-Barbell-Row-1.png',
+  'Elevação Lateral com Halteres':     'https://wger.de/media/exercise-images/69/Side-Lateral-Raise-1.png',
+  'Desenvolvimento de Ombro Lateral no Cross':'https://wger.de/media/exercise-images/69/Side-Lateral-Raise-1.png',
+  'Elevação Lateral na Máquina':       'https://wger.de/media/exercise-images/69/Side-Lateral-Raise-1.png',
+  'Remada Alta com Barra (ombro posterior)':'https://wger.de/media/exercise-images/78/Upright-Barbell-Row-1.png',
+  'Crucifixo Inverso com Halteres':    'https://wger.de/media/exercise-images/79/Bent-Over-Dumbbell-Rear-Delt-Row-1.png',
+  'Crucifixo Inverso no Cabo / Desenvolvimento Posterior':'https://wger.de/media/exercise-images/79/Bent-Over-Dumbbell-Rear-Delt-Row-1.png',
+  'Crucifixo Inverso na Máquina':      'https://wger.de/media/exercise-images/79/Bent-Over-Dumbbell-Rear-Delt-Row-1.png',
+  'Barra Fixa (Pull-up)':              'https://wger.de/media/exercise-images/3/Pull-Up-1.png',
+  'Barra Fixa Assistida':              'https://wger.de/media/exercise-images/3/Pull-Up-1.png',
+  'Puxada Alta no Cabo com Pegada Aberta':'https://wger.de/media/exercise-images/4/Lat-Pulldown-1.png',
+  'Puxada Alta na Máquina com Pegada Aberta':'https://wger.de/media/exercise-images/4/Lat-Pulldown-1.png',
+  'Remada Curvada com Barra':          'https://wger.de/media/exercise-images/6/Bent-Over-Barbell-Row-1.png',
+  'Remada Serrote com Halter':         'https://wger.de/media/exercise-images/7/One-Arm-Dumbbell-Row-1.png',
+  'Remada Unilateral no Cabo':         'https://wger.de/media/exercise-images/7/One-Arm-Dumbbell-Row-1.png',
+  'Remada na Máquina / Pullover':      'https://wger.de/media/exercise-images/6/Bent-Over-Barbell-Row-1.png',
+  'Rosca Direta com Barra (pegada fechada)':'https://wger.de/media/exercise-images/14/Barbell-Curl-1.png',
+  'Rosca Martelo Cruzada':             'https://wger.de/media/exercise-images/99/Hammer-Curls-1.png',
+  'Rosca no Cabo com Braço Atrás (incline curl)':'https://wger.de/media/exercise-images/99/Hammer-Curls-1.png',
+  'Rosca na Máquina (pegada supinada fechada)':'https://wger.de/media/exercise-images/14/Barbell-Curl-1.png',
+  'Rosca Direta com Barra (pegada aberta)':'https://wger.de/media/exercise-images/14/Barbell-Curl-1.png',
+  'Rosca Concentrada com Halter':      'https://wger.de/media/exercise-images/94/Concentration-Curls-1.png',
+  'Rosca Scott no Cabo':               'https://wger.de/media/exercise-images/97/EZ-Bar-Preacher-Curl-1.png',
+  'Rosca Scott na Máquina':            'https://wger.de/media/exercise-images/97/EZ-Bar-Preacher-Curl-1.png',
+  'Rosca Inversa com Barra + Encolhimento':'https://wger.de/media/exercise-images/57/Barbell-Shrug-1.png',
+  'Rosca Inversa com Halteres + Encolhimento':'https://wger.de/media/exercise-images/57/Barbell-Shrug-1.png',
+  'Rosca Inversa no Cabo + Crucifixo Inverso':'https://wger.de/media/exercise-images/57/Barbell-Shrug-1.png',
+  'Encolhimento na Máquina + Crucifixo Inverso':'https://wger.de/media/exercise-images/57/Barbell-Shrug-1.png',
+  'Agachamento Livre com Barra':       'https://wger.de/media/exercise-images/26/Barbell-Squat-1.png',
+  'Agachamento Goblet com Halter':     'https://wger.de/media/exercise-images/26/Barbell-Squat-1.png',
+  'Agachamento na Smith / Hack Machine':'https://wger.de/media/exercise-images/26/Barbell-Squat-1.png',
+  'Leg Press 45° / Cadeira Extensora': 'https://wger.de/media/exercise-images/106/Leg-Press-1.png',
+  'Stiff / Terra Romeno com Barra':    'https://wger.de/media/exercise-images/29/Romanian-Deadlift-1.png',
+  'Terra Romeno com Halteres':         'https://wger.de/media/exercise-images/29/Romanian-Deadlift-1.png',
+  'Terra Romeno na Smith / Flexora em Pé':'https://wger.de/media/exercise-images/29/Romanian-Deadlift-1.png',
+  'Mesa Flexora / Cadeira Flexora':    'https://wger.de/media/exercise-images/108/Seated-Leg-Curl-1.png',
+  'Hip Thrust com Barra no Banco':     'https://wger.de/media/exercise-images/29/Romanian-Deadlift-1.png',
+  'Stiff Unilateral com Halter':       'https://wger.de/media/exercise-images/29/Romanian-Deadlift-1.png',
+  'Elevação de Quadril no Smith':      'https://wger.de/media/exercise-images/29/Romanian-Deadlift-1.png',
+  'Glúteo na Máquina':                 'https://wger.de/media/exercise-images/29/Romanian-Deadlift-1.png',
+  'Passada Lateral na Smith':          'https://wger.de/media/exercise-images/116/Barbell-Lunge-1.png',
+  'Agachamento Sumô com Halter':       'https://wger.de/media/exercise-images/26/Barbell-Squat-1.png',
+  'Adução no Cabo':                    'https://wger.de/media/exercise-images/108/Seated-Leg-Curl-1.png',
+  'Cadeira Adutora':                   'https://wger.de/media/exercise-images/108/Seated-Leg-Curl-1.png',
+  'Panturrilha em Pé com Barra':       'https://wger.de/media/exercise-images/129/Standing-Calf-Raises-1.png',
+  'Panturrilha Unilateral com Halter': 'https://wger.de/media/exercise-images/129/Standing-Calf-Raises-1.png',
+  'Panturrilha no Leg Press':          'https://wger.de/media/exercise-images/129/Standing-Calf-Raises-1.png',
+  'Panturrilha em Pé na Máquina / Sentado':'https://wger.de/media/exercise-images/129/Standing-Calf-Raises-1.png',
+};
+
+/* ── SUPABASE ── */
+const SUPABASE_URL = 'https://gcekfesrqseyizslskmt.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_JSpZ9VyNk8FzEZyjnP8IZA_VSZzvE9E';
+const TABLE = 'treino_historico';
+async function sbFetch(path, opt={}) {
+  const h = {'apikey':SUPABASE_KEY,'Authorization':`Bearer ${SUPABASE_KEY}`,'Content-Type':'application/json'};
+  if(opt.prefer) h['Prefer']=opt.prefer;
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/${path}`,{method:opt.method||'GET',headers:h,body:opt.body});
+  if(!r.ok) throw new Error(`HTTP ${r.status}`);
+  const t = await r.text(); return t?JSON.parse(t):null;
+}
+async function dbGetAll(){ return sbFetch(`${TABLE}?select=*&order=created_at.desc`); }
+async function dbUpsert(rec){ return sbFetch(`${TABLE}?on_conflict=ficha,ex_idx,data_treino`,{method:'POST',prefer:'resolution=merge-duplicates,return=minimal',body:JSON.stringify(rec)}); }
+
+/* ── DATA ── */
+const DB = {
+  peito:{
+    name:'TREINO A — PEITO', color:'#ea580c',
+    sections:{'Peito':['peito_sup','peito_med','peito_inf'],'Tríceps':['tricep_longa','tricep_lateral','tricep_medial'],'Ombro':['ombro_frontal','ombro_lateral']},
+    subgroups:[
+      {id:'peito_sup',name:'Peito Superior',icon:'💪',desc:'Supino inclinado e variações',options:[
+        {eq:'Livre — Barra',eqC:'eq-livre-barra',name:'Supino Inclinado com Barra',series:3,reps:'6-12',rest:90,obs:'Banco em 30-45°. Barra desce até o peitoral superior. Empurrar com o peito, NÃO com os ombros. Cotovelos a ~75° do corpo.',img:''},
+        {eq:'Livre — Halter',eqC:'eq-livre-halter',name:'Supino Inclinado com Halteres',series:3,reps:'6-12',rest:90,obs:'Banco em 30°. Ativa a parte superior do peito. Empurrar com os peitos, NÃO com os ombros. Maior amplitude que a barra.',img:''},
+        {eq:'Cabo / Cross',eqC:'eq-cross',name:'Cross Over de Baixo para Cima',series:3,reps:'10-15',rest:90,obs:'Polia na altura do tornozelo. Puxar de baixo para cima convergindo no topo. Foco na parte superior do peito.',img:''},
+        {eq:'Máquina',eqC:'eq-maquina',name:'Supino Inclinado Máquina',series:3,reps:'6-12',rest:90,obs:'Banco em 30°. Ativa a parte superior do peito. Empurrar com os peitos, NÃO com os ombros.',img:''}
+      ]},
+      {id:'peito_med',name:'Peito Médio',icon:'🎯',desc:'Supino reto e crucifixo',options:[
+        {eq:'Livre — Barra',eqC:'eq-livre-barra',name:'Supino Reto com Barra',series:3,reps:'6-12',rest:90,obs:'Cotovelos a ~75° do tronco. Barra desce até o meio do peitoral. Controle na descida. Empurrar explodindo na subida.',img:''},
+        {eq:'Livre — Halter',eqC:'eq-livre-halter',name:'Crucifixo com Halteres',series:3,reps:'10-15',rest:90,obs:'Ativa a parte do meio do peito. Cotovelos devem estar apontados para trás, NÃO para baixo. Leve flexão do cotovelo.',img:''},
+        {eq:'Cabo / Cross',eqC:'eq-cross',name:'Crucifixo Voador no Cabo',series:3,reps:'10-15',rest:90,obs:'Polias na altura do ombro. Ativa parte medial do peito. Cotovelos levemente flexionados durante todo o movimento.',img:''},
+        {eq:'Máquina',eqC:'eq-maquina',name:'Supino Reto Máquina / Crucifixo Voador',series:3,reps:'6-12',rest:90,obs:'Cotovelos devem apontar para baixo, NÃO para cima. Aperta o peito na contração.',img:''}
+      ]},
+      {id:'peito_inf',name:'Peito Inferior',icon:'⬇️',desc:'Supino declinado e cross over',options:[
+        {eq:'Livre — Barra',eqC:'eq-livre-barra',name:'Supino Declinado com Barra',series:3,reps:'6-12',rest:90,obs:'Banco declinado. Foco na parte inferior do peito. Barra desce até a parte baixa do peitoral.',img:''},
+        {eq:'Livre — Halter',eqC:'eq-livre-halter',name:'Supino Declinado com Halteres',series:3,reps:'10-12',rest:90,obs:'Banco declinado. Foco na parte inferior do peito. Maior amplitude de movimento que a barra.',img:''},
+        {eq:'Cabo / Cross',eqC:'eq-cross',name:'Cross Over de Cima para Baixo',series:3,reps:'10-15',rest:90,obs:'Parte inferior do peito. Colocar a polia acima da cabeça. Puxar convergindo na altura do quadril.',img:''},
+        {eq:'Máquina',eqC:'eq-maquina',name:'Supino Declinado Máquina',series:3,reps:'6-12',rest:90,obs:'Foco na parte inferior do peito. Cotovelos apontam levemente para baixo na contração.',img:''}
+      ]},
+      {id:'tricep_longa',name:'Tríceps — Cabeça Longa',icon:'💥',desc:'Exercícios acima da cabeça',options:[
+        {eq:'Livre — Barra',eqC:'eq-livre-barra',name:'Tríceps Testa com Barra (Skull Crusher)',series:3,reps:'8-12',rest:90,obs:'Deitar no banco. Barra desce em direção à testa. Cotovelos fixos apontando para o teto. Ativa cabeça longa.',img:''},
+        {eq:'Livre — Halter',eqC:'eq-livre-halter',name:'Tríceps Francês com Halteres',series:3,reps:'10-12',rest:90,obs:'Sentado ou em pé. Halter atrás da cabeça. Cotovelos fixos. Máximo alongamento da cabeça longa.',img:''},
+        {eq:'Cabo / Cross',eqC:'eq-cross',name:'Tríceps Polia Alta',series:3,reps:'10-15',rest:90,obs:'Tríceps na altura da cabeça. Cotovelos apontados para cima. Foco máximo na cabeça longa.',img:''},
+        {eq:'Máquina',eqC:'eq-maquina',name:'Tríceps Máquina (extensão acima)',series:3,reps:'10-12',rest:90,obs:'Braços acima da cabeça. Extensão completa. Foco na cabeça longa do tríceps.',img:''}
+      ]},
+      {id:'tricep_lateral',name:'Tríceps — Cabeça Lateral',icon:'⚡',desc:'Extensões e polia média',options:[
+        {eq:'Livre — Barra',eqC:'eq-livre-barra',name:'Mergulho nas Paralelas com peso',series:3,reps:'8-12',rest:90,obs:'Corpo reto, cotovelos próximos ao corpo. Ativa cabeça lateral e medial. Adicione peso se necessário.',img:''},
+        {eq:'Livre — Halter',eqC:'eq-livre-halter',name:'Kickback com Halter',series:3,reps:'12-15',rest:75,obs:'Cotovelo fixo ao lado do tronco. Extensão completa do braço. Foco na cabeça lateral e medial.',img:''},
+        {eq:'Cabo / Cross',eqC:'eq-cross',name:'Tríceps Polia Média',series:3,reps:'10-15',rest:90,obs:'Tríceps na altura da cintura. Cotovelos fixos. Contração total na extensão.',img:''},
+        {eq:'Máquina',eqC:'eq-maquina',name:'Tríceps Máquina (extensão paralela)',series:3,reps:'10-12',rest:90,obs:'Cotovelos alinhados. Extensão completa. Foco na cabeça lateral do tríceps.',img:''}
+      ]},
+      {id:'tricep_medial',name:'Tríceps — Cabeça Medial',icon:'🔥',desc:'Polia baixa e extensões',options:[
+        {eq:'Livre — Barra',eqC:'eq-livre-barra',name:'Bench Dip (Tríceps no Banco)',series:3,reps:'12-15',rest:75,obs:'Mãos no banco, corpo à frente. Desce controlado. Foco na cabeça medial. Pode adicionar peso no colo.',img:''},
+        {eq:'Livre — Halter',eqC:'eq-livre-halter',name:'Extensão de Tríceps Neutro com Halter',series:3,reps:'12-15',rest:75,obs:'Braço ao lado do corpo, extensão total. Pegada neutra. Foco na cabeça medial.',img:''},
+        {eq:'Cabo / Cross',eqC:'eq-cross',name:'Tríceps Polia Baixa',series:3,reps:'12-15',rest:90,obs:'Tríceps na altura do joelho. Cotovelos fixos ao lado do corpo. Contração máxima embaixo.',img:''},
+        {eq:'Máquina',eqC:'eq-maquina',name:'Tríceps Máquina (polia neutra)',series:3,reps:'12-15',rest:75,obs:'Pegada neutra. Extensão completa. Foco na cabeça medial do tríceps.',img:''}
+      ]},
+      {id:'ombro_frontal',name:'Ombro — Frontal',icon:'🏋️',desc:'Desenvolvimento e elevações frontais',options:[
+        {eq:'Livre — Barra',eqC:'eq-livre-barra',name:'Desenvolvimento Militar com Barra',series:3,reps:'6-12',rest:90,obs:'Em pé ou sentado. Barra na altura do queixo, empurrar para cima. Core contraído. NÃO arqueie a lombar.',img:''},
+        {eq:'Livre — Halter',eqC:'eq-livre-halter',name:'Elevação Frontal com Halteres',series:3,reps:'10-15',rest:75,obs:'Subir até a altura dos ombros. Leve flexão do cotovelo. Controle na descida. Foco na cabeça anterior.',img:''},
+        {eq:'Cabo / Cross',eqC:'eq-cross',name:'Desenvolvimento de Ombro Frontal no Cross',series:3,reps:'10-15',rest:90,obs:'Polia na altura do tornozelo. Parte frontal do ombro. Puxar de baixo para frente e para cima.',img:''},
+        {eq:'Máquina',eqC:'eq-maquina',name:'Desenvolvimento de Ombro na Máquina',series:3,reps:'8-12',rest:90,obs:'Empurrar verticalmente. Não travar o cotovelo no topo. Foco na cabeça anterior do deltóide.',img:''}
+      ]},
+      {id:'ombro_lateral',name:'Ombro — Lateral',icon:'↔️',desc:'Elevações laterais',options:[
+        {eq:'Livre — Barra',eqC:'eq-livre-barra',name:'Upright Row com Barra',series:3,reps:'10-12',rest:75,obs:'Puxar a barra verticalmente até a altura do queixo. Cotovelos acima dos punhos. Ativa deltóide lateral e trapézio.',img:''},
+        {eq:'Livre — Halter',eqC:'eq-livre-halter',name:'Elevação Lateral com Halteres',series:3,reps:'12-15',rest:75,obs:'Subir até a linha dos ombros. Polegar levemente para baixo. Controle total na descida. NÃO use impulso.',img:''},
+        {eq:'Cabo / Cross',eqC:'eq-cross',name:'Desenvolvimento de Ombro Lateral no Cross',series:3,reps:'12-15',rest:90,obs:'Polia na altura do joelho. Parte lateral do ombro. Puxar lateralmente até a linha do ombro.',img:''},
+        {eq:'Máquina',eqC:'eq-maquina',name:'Elevação Lateral na Máquina',series:3,reps:'12-15',rest:75,obs:'Subir até a linha dos ombros. Controle total. Foco no deltóide lateral. Pausa no topo.',img:''}
+      ]}
+    ]
+  },
+  costas:{
+    name:'TREINO B — COSTAS', color:'#2563eb',
+    sections:{'Costas':['costas_largura','costas_espessura'],'Bíceps':['bicep_longa','bicep_curta'],'Ombro Posterior':['ombro_post'],'Antebraço / Trapézio':['antebr_trap']},
+    subgroups:[
+      {id:'costas_largura',name:'Costas — Largura',icon:'🦅',desc:'Puxadas e puxadores',options:[
+        {eq:'Livre — Barra',eqC:'eq-livre-barra',name:'Barra Fixa (Pull-up)',series:3,reps:'6-12',rest:105,obs:'Pegada pronada aberta. Puxar com as costas, não com o braço. Descer controlado até extensão total dos braços.',img:''},
+        {eq:'Livre — Halter',eqC:'eq-livre-halter',name:'Barra Fixa Assistida',series:3,reps:'6-12',rest:105,obs:'Use assistência para 6-12 reps com boa execução. Foco em puxar com as costas, não com o braço.',img:''},
+        {eq:'Cabo / Cross',eqC:'eq-cross',name:'Puxada Alta no Cabo com Pegada Aberta',series:3,reps:'6-12',rest:105,obs:'Puxar até o queixo. Foco em puxar com as costas, não com o braço. Cotovelos para baixo e para trás.',img:''},
+        {eq:'Máquina',eqC:'eq-maquina',name:'Puxada Alta na Máquina com Pegada Aberta',series:3,reps:'6-12',rest:105,obs:'Fazer com o máximo de peso possível. Quando conseguir 12 reps, subir o peso. Foco em puxar com as costas.',img:''}
+      ]},
+      {id:'costas_espessura',name:'Costas — Espessura',icon:'💪',desc:'Remadas e pullover',options:[
+        {eq:'Livre — Barra',eqC:'eq-livre-barra',name:'Remada Curvada com Barra',series:3,reps:'6-12',rest:90,obs:'Tronco paralelo ao chão. Barra sobe até o abdômen. Escápulas contraídas no topo. Coluna neutra o tempo todo.',img:''},
+        {eq:'Livre — Halter',eqC:'eq-livre-halter',name:'Remada Serrote com Halter',series:3,reps:'6-12',rest:90,obs:'Apoiar joelho e mão no banco. Puxar o halter até o quadril. Espremendo escápulas na fase final.',img:''},
+        {eq:'Cabo / Cross',eqC:'eq-cross',name:'Remada Unilateral no Cabo',series:3,reps:'6-12',rest:90,obs:'Fazer com o máximo de peso possível. Espremendo escápulas na fase final. Puxar até o quadril.',img:''},
+        {eq:'Máquina',eqC:'eq-maquina',name:'Remada na Máquina / Pullover',series:3,reps:'6-15',rest:90,obs:'Remada: espremendo escápulas na fase final. Pullover: isolador dorsal, sem flexionar muito o cotovelo.',img:''}
+      ]},
+      {id:'bicep_longa',name:'Bíceps — Cabeça Longa',icon:'💪',desc:'Foco na cabeça longa (parte externa)',options:[
+        {eq:'Livre — Barra',eqC:'eq-livre-barra',name:'Rosca Direta com Barra (pegada fechada)',series:3,reps:'8-12',rest:82,obs:'Pegada mais fechada que a largura dos ombros ativa a cabeça longa. Sem roubar, controle na descida. Cotovelos fixos.',img:''},
+        {eq:'Livre — Halter',eqC:'eq-livre-halter',name:'Rosca Martelo Cruzada',series:3,reps:'10-12',rest:82,obs:'Pegada neutra, cruzar o halter em direção ao ombro oposto. Foco máximo na cabeça longa e braquial.',img:''},
+        {eq:'Cabo / Cross',eqC:'eq-cross',name:'Rosca no Cabo com Braço Atrás (incline curl)',series:3,reps:'10-12',rest:82,obs:'Polia baixa, braço levemente atrás do corpo. Máximo alongamento da cabeça longa na posição inicial.',img:''},
+        {eq:'Máquina',eqC:'eq-maquina',name:'Rosca na Máquina (pegada supinada fechada)',series:3,reps:'8-12',rest:82,obs:'Pegada supinada mais fechada. Cotovelos fixos. Contração completa no topo. Foco na cabeça longa.',img:''}
+      ]},
+      {id:'bicep_curta',name:'Bíceps — Cabeça Curta',icon:'🦾',desc:'Foco na cabeça curta (parte interna)',options:[
+        {eq:'Livre — Barra',eqC:'eq-livre-barra',name:'Rosca Direta com Barra (pegada aberta)',series:3,reps:'8-12',rest:82,obs:'Pegada mais aberta que a largura dos ombros ativa a cabeça curta. Sem roubar, controle na descida.',img:''},
+        {eq:'Livre — Halter',eqC:'eq-livre-halter',name:'Rosca Concentrada com Halter',series:3,reps:'10-12',rest:82,obs:'Cotovelo apoiado na parte interna da coxa. Supinar totalmente no topo. Foco máximo na cabeça curta.',img:''},
+        {eq:'Cabo / Cross',eqC:'eq-cross',name:'Rosca Scott no Cabo',series:3,reps:'10-12',rest:82,obs:'Cotovelo apoiado no suporte. Puxar até a contração completa. Cabeça curta muito ativada nessa posição.',img:''},
+        {eq:'Máquina',eqC:'eq-maquina',name:'Rosca Scott na Máquina',series:3,reps:'8-12',rest:82,obs:'Cotovelo fixo no apoio. Contração completa no topo. Sem roubar na descida. Foco na cabeça curta.',img:''}
+      ]},
+      {id:'ombro_post',name:'Posterior de Ombro',icon:'🎯',desc:'Crucifixo inverso e desenvolvimento posterior',options:[
+        {eq:'Livre — Barra',eqC:'eq-livre-barra',name:'Remada Alta com Barra (ombro posterior)',series:3,reps:'12-15',rest:67,obs:'Ombro atrás, peito aberto. Puxar cotovelos para trás e para cima. Foco no deltóide posterior.',img:''},
+        {eq:'Livre — Halter',eqC:'eq-livre-halter',name:'Crucifixo Inverso com Halteres',series:3,reps:'12-15',rest:67,obs:'Tronco inclinado à frente. Abrir os braços para os lados com cotovelos levemente flexionados. Ombro atrás, peito aberto.',img:''},
+        {eq:'Cabo / Cross',eqC:'eq-cross',name:'Crucifixo Inverso no Cabo / Desenvolvimento Posterior',series:3,reps:'12-15',rest:67,obs:'Crucifixo inverso: ombro atrás, peito aberto. Desenvolvimento posterior: polia na altura do peitoral, parte posterior do ombro.',img:''},
+        {eq:'Máquina',eqC:'eq-maquina',name:'Crucifixo Inverso na Máquina',series:3,reps:'12-15',rest:67,obs:'Ombro atrás, peito aberto. Contração máxima no topo. Controle total na descida.',img:''}
+      ]},
+      {id:'antebr_trap',name:'Antebraço / Trapézio',icon:'🦾',desc:'Rosca inversa e encolhimento',options:[
+        {eq:'Livre — Barra',eqC:'eq-livre-barra',name:'Rosca Inversa com Barra + Encolhimento',series:3,reps:'15-20',rest:52,obs:'Rosca inversa: movimento curto, só punho e antebraço. Encolhimento: subir ombros em direção às orelhas, pausa em cima.',img:''},
+        {eq:'Livre — Halter',eqC:'eq-livre-halter',name:'Rosca Inversa com Halteres + Encolhimento',series:3,reps:'15-20',rest:52,obs:'Rosca inversa: movimento curto, só punho e antebraço. Encolhimento com halteres: subir ombros, pausa em cima.',img:''},
+        {eq:'Cabo / Cross',eqC:'eq-cross',name:'Rosca Inversa no Cabo + Crucifixo Inverso',series:3,reps:'15-20',rest:52,obs:'Rosca inversa no cabo. Crucifixo inverso: ombro atrás, peito aberto. Polia na altura do peitoral.',img:''},
+        {eq:'Máquina',eqC:'eq-maquina',name:'Encolhimento na Máquina + Crucifixo Inverso',series:3,reps:'10-12',rest:60,obs:'Encolhimento: subir ombros em direção às orelhas, pausa em cima. Crucifixo inverso: ombro atrás, peito aberto.',img:''}
+      ]}
+    ]
+  },
+  perna:{
+    name:'TREINO C — PERNAS', color:'#7c3aed',
+    sections:{'Pernas':['quad','post_coxa','gluteo','adutor','panturrilha']},
+    subgroups:[
+      {id:'quad',name:'Quadríceps',icon:'🦵',desc:'Agachamentos e extensoras',options:[
+        {eq:'Livre — Barra',eqC:'eq-livre-barra',name:'Agachamento Livre com Barra',series:3,reps:'6-12',rest:105,obs:'Descer até próximo de 90°, coluna neutra. Fazer com o máximo de peso possível. Quando conseguir 12 reps, subir o peso.',img:''},
+        {eq:'Livre — Halter',eqC:'eq-livre-halter',name:'Agachamento Goblet com Halter',series:3,reps:'12-15',rest:82,obs:'Halter no centro do peito. Descer até 90°. Coluna ereta. Segurar 1 segundo na contração.',img:''},
+        {eq:'Cabo / Cross',eqC:'eq-cross',name:'Agachamento na Smith / Hack Machine',series:3,reps:'6-12',rest:105,obs:'Descer até próximo de 90°, coluna neutra. Fazer com o máximo de peso possível. Quando conseguir 12 reps, subir o peso.',img:''},
+        {eq:'Máquina',eqC:'eq-maquina',name:'Leg Press 45° / Cadeira Extensora',series:3,reps:'6-15',rest:105,obs:'Leg Press: descer até 90°, coluna neutra. Cadeira extensora: ajustar encostando dobra do joelho, segurar 1s na contração.',img:''}
+      ]},
+      {id:'post_coxa',name:'Posterior de Coxa',icon:'🦵',desc:'Terra romeno e flexoras',options:[
+        {eq:'Livre — Barra',eqC:'eq-livre-barra',name:'Stiff / Terra Romeno com Barra',series:3,reps:'8-10',rest:105,obs:'Descer até sentir alongar o posterior. Coluna firme. Joelhos levemente flexionados. Não arredondar as costas.',img:''},
+        {eq:'Livre — Halter',eqC:'eq-livre-halter',name:'Terra Romeno com Halteres',series:3,reps:'8-10',rest:105,obs:'Descer até sentir alongar o posterior. Coluna firme. Halteres próximos às pernas durante todo o movimento.',img:''},
+        {eq:'Cabo / Cross',eqC:'eq-cross',name:'Terra Romeno na Smith / Flexora em Pé',series:3,reps:'8-12',rest:90,obs:'Terra romeno na Smith: descer até sentir alongar, coluna firme. Flexora em pé: não deixar o quadril subir.',img:''},
+        {eq:'Máquina',eqC:'eq-maquina',name:'Mesa Flexora / Cadeira Flexora',series:3,reps:'10-12',rest:82,obs:'Não deixar o quadril subir. Controle total na descida. Pausa na contração no topo.',img:''}
+      ]},
+      {id:'gluteo',name:'Glúteo',icon:'🍑',desc:'Hip thrust e elevações',options:[
+        {eq:'Livre — Barra',eqC:'eq-livre-barra',name:'Hip Thrust com Barra no Banco',series:3,reps:'10-12',rest:82,obs:'Empurra o calcanhar, pausa em cima. Quadril sobe até ficar alinhado com joelhos e ombros. Contrair o glúteo no topo.',img:''},
+        {eq:'Livre — Halter',eqC:'eq-livre-halter',name:'Stiff Unilateral com Halter',series:3,reps:'10-12',rest:82,obs:'Unilateral. Foco máximo no glúteo. Empurra o calcanhar. Pausa em cima contraindo o glúteo.',img:''},
+        {eq:'Cabo / Cross',eqC:'eq-cross',name:'Elevação de Quadril no Smith',series:3,reps:'10-12',rest:82,obs:'Empurra o calcanhar, pausa em cima. Atenção à inclinação do corpo. Quadril sobe em linha reta.',img:''},
+        {eq:'Máquina',eqC:'eq-maquina',name:'Glúteo na Máquina',series:3,reps:'10-12',rest:82,obs:'Empurra o calcanhar, pausa em cima. Contração máxima no topo. Controle total na descida.',img:''}
+      ]},
+      {id:'adutor',name:'Adutor',icon:'🦿',desc:'Adução e passada lateral',options:[
+        {eq:'Livre — Barra',eqC:'eq-livre-barra',name:'Passada Lateral na Smith',series:3,reps:'12-15',rest:67,obs:'Controle total, sem soltar o peso. Descer controlado lateralmente. Foco no adutor da perna que recebe o peso.',img:''},
+        {eq:'Livre — Halter',eqC:'eq-livre-halter',name:'Agachamento Sumô com Halter',series:3,reps:'12-15',rest:67,obs:'Pés afastados, pontas dos pés para fora. Foco no adutor. Descer controlado. Controle total.',img:''},
+        {eq:'Cabo / Cross',eqC:'eq-cross',name:'Adução no Cabo',series:3,reps:'12-15',rest:67,obs:'Controle total, sem soltar o peso. Polia na altura do tornozelo. Puxar a perna em direção à linha central do corpo.',img:''},
+        {eq:'Máquina',eqC:'eq-maquina',name:'Cadeira Adutora',series:3,reps:'12-15',rest:67,obs:'Controle total, sem soltar o peso. Fechar controlado. Pausa na contração. Abrir lentamente.',img:''}
+      ]},
+      {id:'panturrilha',name:'Panturrilha',icon:'🦶',desc:'Elevações de panturrilha',options:[
+        {eq:'Livre — Barra',eqC:'eq-livre-barra',name:'Panturrilha em Pé com Barra',series:3,reps:'12-20',rest:52,obs:'Pausa embaixo e em cima, amplitude máxima. Descer até sentir o alongamento total. Subir na ponta dos pés.',img:''},
+        {eq:'Livre — Halter',eqC:'eq-livre-halter',name:'Panturrilha Unilateral com Halter',series:3,reps:'12-20',rest:52,obs:'Pausa embaixo e em cima, amplitude máxima. Unilateral: maior amplitude e foco. Use degrau para mais ROM.',img:''},
+        {eq:'Cabo / Cross',eqC:'eq-cross',name:'Panturrilha no Leg Press',series:3,reps:'12-20',rest:52,obs:'Apenas a ponta dos pés na plataforma. Pausa embaixo e em cima. Amplitude total.',img:''},
+        {eq:'Máquina',eqC:'eq-maquina',name:'Panturrilha em Pé na Máquina / Sentado',series:3,reps:'12-20',rest:52,obs:'Pausa embaixo e em cima, amplitude máxima. Em pé: foco no gastrocnêmio. Sentado: foco no sóleo.',img:''}
+      ]}
+    ]
+  }
+};
+const FICHA_COLORS = {peito:'#ea580c',costas:'#2563eb',perna:'#7c3aed'};
+
+/* ── STATE ── */
+let currentFicha=null, currentSgId=null, currentOptIdx=null;
+let selectedOpt={}, seriesData={}, historyDB=[], histFilter='todos';
+let timerInterval=null, timerSeconds=0, timerRunning=false;
+
+/* ── INIT ── */
+async function init(){
+  const safe=setTimeout(()=>{historyDB=JSON.parse(localStorage.getItem('lz_cache')||'[]');updateStats();hide('loading-overlay');showScreen('home');},3000);
+  try{
+    const r=await Promise.race([dbGetAll(),new Promise((_,rj)=>setTimeout(()=>rj(),5000))]);
+    clearTimeout(safe);historyDB=r||[];localStorage.setItem('lz_cache',JSON.stringify(historyDB));
+    el('sync-dot').className='sync-dot';el('sync-label').textContent='Sincronizado com a nuvem';
+  }catch(e){
+    clearTimeout(safe);historyDB=JSON.parse(localStorage.getItem('lz_cache')||'[]');
+    el('sync-dot').className='sync-dot offline';el('sync-label').textContent='Sem conexão — dados locais';
+  }
+  updateStats();hide('loading-overlay');showScreen('home');
+}
+init();
+
+/* ── HELPERS ── */
+function el(id){return document.getElementById(id);}
+function hide(id){el(id).classList.add('hidden');}
+function showScreen(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));el(id).classList.add('active');window.scrollTo(0,0);}
+function toast(msg){const t=el('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2200);}
+function fmtT(s){return`${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;}
+function fmtRest(s){if(s<60)return`${s}s`;const m=Math.floor(s/60),r=s%60;return r?`${m}min ${r}s`:`${m}min`;}
+function today(){return new Date().toDateString();}
+
+/* ── STATS ── */
+function updateStats(){
+  const sessions=new Set(historyDB.map(e=>e.data_treino)).size;
+  const series=historyDB.reduce((a,e)=>a+(e.series?.length||0),0);
+  el('stat-treinos').textContent=sessions||0;el('stat-series').textContent=series||0;el('stat-exercicios').textContent=historyDB.length||0;
+}
+
+/* ── NAV ── */
+function goHome(){stopTimer();showScreen('home');updateStats();}
+function goFicha(){stopTimer();openFicha(currentFicha);}
+function goOpcoes(){stopTimer();openOpcoes(currentSgId);}
+
+/* ── FICHA ── */
+function openFicha(key){
+  currentFicha=key;const ficha=DB[key];
+  el('ficha-title').textContent=ficha.name;
+  const body=el('ficha-body');body.innerHTML='';
+  Object.entries(ficha.sections).forEach(([sec,ids])=>{
+    const lbl=document.createElement('div');lbl.className='ficha-section-label';lbl.textContent=sec;body.appendChild(lbl);
+    ids.forEach(sgId=>{
+      const sg=ficha.subgroups.find(s=>s.id===sgId);if(!sg)return;
+      const done=historyDB.some(e=>e.data_treino===today()&&e.ficha===key&&e.ex_idx===sgId);
+      const d=document.createElement('div');
+      d.className='subgroup-btn fade-in'+(done?' sg-done':'');
+      d.onclick=()=>openOpcoes(sgId);
+      d.innerHTML=`<div class="sg-icon">${sg.icon}</div><div class="sg-info"><div class="sg-name">${sg.name}</div><div class="sg-sub">${sg.desc}</div></div>${done?'<div class="sg-done-icon">✓</div>':'<div class="sg-arrow">›</div>'}`;
+      body.appendChild(d);
+    });
+  });
+  showScreen('ficha');
+}
+
+/* ── OPÇÕES ── */
+function openOpcoes(sgId){
+  currentSgId=sgId;const sg=DB[currentFicha].subgroups.find(s=>s.id===sgId);
+  el('opcoes-title').textContent=sg.name.toUpperCase();
+  const body=el('opcoes-body');body.innerHTML='';
+  const prev=selectedOpt[sgId];
+  sg.options.forEach((opt,idx)=>{
+    const sel=prev===idx;
+    const c=document.createElement('div');c.className='opcao-card fade-in'+(sel?' selected':'');c.id=`op-${idx}`;c.onclick=()=>selectOpt(idx);
+    c.innerHTML=`
+      <div class="opcao-header"><span class="opcao-eq-tag ${opt.eqC}">${opt.eq}</span><div class="opcao-name">${opt.name}</div></div>
+      <div class="opcao-meta">${opt.series}x ${opt.reps} · Descanso: ${fmtRest(opt.rest)}</div>
+      ${IMGS[opt.name]?`<img class="opcao-img" src="${IMGS[opt.name]}" alt="${opt.name}" onerror="this.style.display='none'">`:`<div class="opcao-img-placeholder">[ ${opt.eq} ]</div>`}
+      <div class="opcao-obs"><strong>📋 Execução</strong>${opt.obs}</div>`;
+    body.appendChild(c);
+  });
+  el('btn-sel-wrap').className='btn-selecionar-wrap'+(prev!==undefined?' visible':'');
+  showScreen('opcoes');
+}
+function selectOpt(idx){
+  document.querySelectorAll('.opcao-card').forEach(c=>c.classList.remove('selected'));
+  el(`op-${idx}`).classList.add('selected');
+  selectedOpt[currentSgId]=idx;
+  el('btn-sel-wrap').className='btn-selecionar-wrap visible';
+}
+function confirmSelection(){
+  const idx=selectedOpt[currentSgId];if(idx===undefined)return;
+  currentOptIdx=idx;openExercicio();
+}
+
+/* ── EXERCÍCIO ── */
+function openExercicio(){
+  const ficha=DB[currentFicha];const sg=ficha.subgroups.find(s=>s.id===currentSgId);const opt=sg.options[currentOptIdx];
+  const doneSGs=ficha.subgroups.filter(s=>historyDB.some(e=>e.data_treino===today()&&e.ficha===currentFicha&&e.ex_idx===s.id)).length;
+  const total=ficha.subgroups.length;
+  el('ex-title').textContent=opt.name;
+  el('ex-counter').textContent=`${doneSGs}/${total} concluídos`;
+  el('ex-progress').style.width=`${(doneSGs/total)*100}%`;
+  const rec=getWeightRec();
+  let html='';
+  // Visual
+  html+=`<div class="ex-visual">`;
+  html+=IMGS[opt.name]?`<img src="${IMGS[opt.name]}" alt="${opt.name}" onerror="this.style.display='none'">`:`<div class="ex-visual-placeholder">${opt.name}</div>`;
+  html+=`<div class="ex-muscle-tag" style="background:${ficha.color}22;color:${ficha.color};border:1px solid ${ficha.color}44">${sg.name}</div>`;
+  html+=`<div class="ex-eq-tag"><span class="opcao-eq-tag ${opt.eqC}" style="font-size:9px">${opt.eq}</span></div>`;
+  html+=`</div>`;
+  // Obs
+  html+=`<div class="obs-card"><strong>📋 Execução</strong>${opt.obs}</div>`;
+  // Rec
+  if(rec) html+=`<div class="weight-rec"><div class="weight-rec-icon">🎯</div><div class="weight-rec-text"><div class="weight-rec-label">Peso recomendado (média últimos 3)</div><div class="weight-rec-val">${rec.avg} kg</div><div class="weight-rec-sub">${rec.detail}</div></div></div>`;
+  // Series
+  html+=`<div class="series-section"><div class="series-header"><div class="series-title">Séries</div><div class="rep-range">${opt.reps} reps</div></div><div class="series-rows">`;
+  for(let s=0;s<opt.series;s++){
+    const k=`${currentFicha}_${currentSgId}_${today()}_${s}`;const d=seriesData[k]||{};
+    html+=`<div class="serie-row ${d.done?'done':''}" id="sr-${s}"><div class="serie-label">S${s+1}</div><div class="serie-input-group"><div class="serie-input-wrap"><div class="serie-input-label">Peso (kg)</div><input type="number" class="serie-input" id="p-${s}" value="${d.peso||''}" placeholder="—" step="0.5" min="0" inputmode="decimal" onchange="saveSerie(${s})"></div><div class="serie-input-wrap"><div class="serie-input-label">Reps</div><input type="number" class="serie-input" id="r-${s}" value="${d.reps||''}" placeholder="—" min="0" inputmode="numeric" onchange="saveSerie(${s})"></div></div><div class="serie-check ${d.done?'done':''}" id="sc-${s}" onclick="toggleSerie(${s})">${d.done?'✓':''}</div></div>`;
+  }
+  html+=`</div></div>`;
+  // Timer
+  html+=`<div class="timer-card"><div class="timer-label">Descanso</div><div class="timer-display" id="timer-disp">${fmtT(opt.rest)}</div><div class="timer-controls"><button class="timer-btn" onclick="resetTimer(${opt.rest})">Reset</button><button class="timer-btn primary" id="timer-toggle" onclick="toggleTimer()">▶ Iniciar</button></div><div class="timer-presets"><div class="timer-preset" onclick="setTimer(45)">45s</div><div class="timer-preset" onclick="setTimer(60)">1min</div><div class="timer-preset" onclick="setTimer(75)">1:15</div><div class="timer-preset" onclick="setTimer(90)">1:30</div><div class="timer-preset" onclick="setTimer(105)">1:45</div><div class="timer-preset" onclick="setTimer(120)">2min</div></div></div>`;
+  el('ex-body').innerHTML=html;
+  if(!timerRunning)timerSeconds=opt.rest;
+  showScreen('exercicio');
+}
+
+function saveSerie(s){
+  const k=`${currentFicha}_${currentSgId}_${today()}_${s}`;
+  if(!seriesData[k])seriesData[k]={};
+  seriesData[k].peso=el(`p-${s}`)?.value||'';seriesData[k].reps=el(`r-${s}`)?.value||'';
+}
+function toggleSerie(s){
+  saveSerie(s);const k=`${currentFicha}_${currentSgId}_${today()}_${s}`;
+  if(!seriesData[k])seriesData[k]={};seriesData[k].done=!seriesData[k].done;
+  const sc=el(`sc-${s}`),sr=el(`sr-${s}`);
+  if(seriesData[k].done){sc.classList.add('done');sc.textContent='✓';sr.classList.add('done');const sg=DB[currentFicha].subgroups.find(x=>x.id===currentSgId);setTimer(sg.options[currentOptIdx].rest);startTimer();}
+  else{sc.classList.remove('done');sc.textContent='';sr.classList.remove('done');}
+}
+
+/* ── WEIGHT REC ── */
+function getWeightRec(){
+  const past=historyDB.filter(e=>e.ficha===currentFicha&&e.ex_idx===currentSgId&&e.series?.length>0).slice(0,3);
+  if(!past.length)return null;
+  const avgs=past.map(e=>{const ws=(e.series||[]).map(s=>parseFloat(s.peso)).filter(w=>!isNaN(w)&&w>0);return ws.length?ws.reduce((a,b)=>a+b,0)/ws.length:null;}).filter(w=>w!==null);
+  if(!avgs.length)return null;
+  return{avg:(avgs.reduce((a,b)=>a+b,0)/avgs.length).toFixed(1),detail:`Baseado em ${past.length} treino${past.length>1?'s':''} anterior${past.length>1?'es':''}`};
+}
+
+/* ── FINISH ── */
+async function finishExercise(){
+  const sg=DB[currentFicha].subgroups.find(s=>s.id===currentSgId);const opt=sg.options[currentOptIdx];
+  const t=today();const series=[];
+  for(let s=0;s<opt.series;s++){const k=`${currentFicha}_${currentSgId}_${t}_${s}`;const d=seriesData[k]||{};if(d.peso||d.reps)series.push({peso:d.peso||'',reps:d.reps||''});}
+  if(!series.length){toast('⚠️ Registre pelo menos uma série');return;}
+  const rec={data_treino:t,ficha:currentFicha,ex_idx:currentSgId,ex_nome:opt.name,equipamento:opt.eq,series};
+  try{await dbUpsert(rec);toast('✓ Salvo na nuvem');}catch(e){toast('Salvo localmente');}
+  historyDB=historyDB.filter(e=>!(e.data_treino===t&&e.ficha===currentFicha&&e.ex_idx===currentSgId));
+  historyDB.unshift(rec);localStorage.setItem('lz_cache',JSON.stringify(historyDB));
+  stopTimer();goFicha();
+}
+
+/* ── TIMER ── */
+function setTimer(s,upd=true){stopTimer();timerSeconds=s;if(upd){const d=el('timer-disp');if(d){d.textContent=fmtT(s);d.className='timer-display';}}}
+function startTimer(){
+  if(timerRunning)return;timerRunning=true;
+  const d=el('timer-disp'),t=el('timer-toggle');
+  if(d)d.classList.add('running');if(t)t.textContent='⏸ Pausar';
+  timerInterval=setInterval(()=>{timerSeconds--;const d2=el('timer-disp');if(timerSeconds<=0){stopTimer();if(d2){d2.textContent='VAI!';d2.className='timer-display done-timer';}return;}if(d2)d2.textContent=fmtT(timerSeconds);},1000);
+}
+function stopTimer(){clearInterval(timerInterval);timerRunning=false;const t=el('timer-toggle'),d=el('timer-disp');if(t)t.textContent='▶ Iniciar';if(d)d.classList.remove('running','done-timer');}
+function toggleTimer(){timerRunning?stopTimer():startTimer();}
+function resetTimer(s){setTimer(s);}
+
+/* ── HISTÓRICO ── */
+function filterHist(f,btn){histFilter=f;document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));if(btn)btn.classList.add('active');renderHist();}
+async function openHistorico(){try{historyDB=await dbGetAll()||[];}catch(e){}renderHist();showScreen('historico');}
+function renderHist(){
+  const f=histFilter==='todos'?historyDB:historyDB.filter(e=>e.ficha===histFilter);
+  const body=el('hist-body');
+  if(!f.length){body.innerHTML=`<div class="empty-state"><div class="icon">📭</div>Nenhum treino registrado ainda.</div>`;return;}
+  const groups={};f.forEach(e=>{if(!groups[e.data_treino])groups[e.data_treino]=[];groups[e.data_treino].push(e);});
+  body.innerHTML=Object.entries(groups).map(([date,entries])=>`
+    <div class="hist-date-group fade-in"><div class="hist-date-label">${date}</div>
+    ${entries.map(e=>{const fc=FICHA_COLORS[e.ficha]||'#666';return`<div class="hist-entry"><div class="hist-entry-top"><span class="hist-ficha-tag" style="background:${fc}22;color:${fc};border:1px solid ${fc}44">${(e.ficha||'').toUpperCase()}</span><div class="hist-ex-name">${e.ex_nome}</div></div><div class="hist-eq">${e.equipamento||''}</div><div class="hist-series">${(e.series||[]).map((s,i)=>`<span class="hist-serie-tag">S${i+1}: ${s.peso||'?'}kg × ${s.reps||'?'}</span>`).join('')}</div></div>`;}).join('')}
+    </div>`).join('');
+}
+function closeHistorico(){if(currentFicha)showScreen('ficha');else goHome();}
+</script>
+</body>
+</html>
